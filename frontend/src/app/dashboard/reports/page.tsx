@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { TrendingUp, PieChart, DollarSign } from "lucide-react";
+import React from "react";
 
 // ✅ Define interface only once
 interface Report {
@@ -123,7 +124,7 @@ export default function ReportsPage() {
     fetchReports();
   }, [filterType, customRange]);
 
-  const icons: Record<string, JSX.Element> = {
+  const icons: Record<string, React.ReactNode> = {
     "Profit and Loss": <TrendingUp className="text-3xl text-green-500" />,
     "Balance Sheet": <PieChart className="text-3xl text-blue-500" />,
     "Cash Flow Statement": <DollarSign className="text-3xl text-yellow-500" />,
