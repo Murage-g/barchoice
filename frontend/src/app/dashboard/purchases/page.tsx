@@ -88,7 +88,7 @@ export default function PurchasesPage() {
     setTotalSpent(res.data.total_spent || 0);
   };
 
-  const handlePurchaseSubmit = async (e: React...formEvent) => {
+  const handlePurchaseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
