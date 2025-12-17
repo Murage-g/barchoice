@@ -16,7 +16,8 @@ from routes.reconciliation import recon_bp
 from routes.expenses import expenses_bp
 from routes.reports_bp import reports_bp
 
-from flask_cors import CORS
+import os
+
 
 def create_app():
     app = Flask(__name__)
@@ -25,11 +26,19 @@ def create_app():
     # Initialize extensions
     cors.init_app(
         app,
-        resources={r"/api/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000"]}},
+        resources={
+            r"/api/*": {
+                "origins": [
+                    "http://localhost:3000",
+                    "http://127.0.0.1:3000",
+                ]
+            }
+        },
         supports_credentials=True,
         allow_headers=["Content-Type", "Authorization"],
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     )
+
     db.init_app(app)
     bcrypt.init_app(app)
     jwt.init_app(app)
@@ -42,18 +51,14 @@ def create_app():
     app.register_blueprint(products_bp, url_prefix="/api")
     app.register_blueprint(sales_bp, url_prefix="/api")
     app.register_blueprint(utils_bp)
-    app.register_blueprint(purchases_bp, url_prefix = "/api")
+    app.register_blueprint(purchases_bp, url_prefix="/api")
     app.register_blueprint(conversion_bp)
     app.register_blueprint(recon_bp)
     app.register_blueprint(expenses_bp)
     app.register_blueprint(reports_bp)
 
-
-    # Create tables (optional in dev mode)
-    with app.app_context():
-        db.create_all()
-
     return app
+
 
 app = create_app()
 
