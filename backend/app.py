@@ -37,7 +37,7 @@ def create_app():
     jwt.init_app(app)
 
     # Register blueprints
-    app.register_blueprint(auth_bp)
+    app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(role_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(dashboard_bp)
