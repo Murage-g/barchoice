@@ -1,17 +1,21 @@
-// frontend/utils/api.ts
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000/api";
+// utils/api.ts
+export const API_BASE_URL = "https://barpos-production.up.railway.app"; // backend URL
 
-export async function apiRequest(endpoint: string, options: RequestInit = {}) {
+export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-  const headers = {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    ...options,
+  });
 
-  const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
-  const data = await response.json();
-
-  if (!response.ok) throw new Error(data.message || "Request failed");
-  return data;
-}
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Invalid JSON response: ${text}`);
+  }
+};
