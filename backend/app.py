@@ -26,14 +26,7 @@ def create_app():
     # Initialize extensions
     cors.init_app(
         app,
-        resources={
-            r"/api/*": {
-                "origins": [
-                    "${process.env.NEXT_PUBLIC_API_URL}",
-                    "http://127.0.0.1:3000",
-                ]
-            }
-        },
+        resources={r"/*": {"origins": "https://upbeat-wisdom-production-89f0.up.railway.app"}},
         supports_credentials=True,
         allow_headers=["Content-Type", "Authorization"],
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
