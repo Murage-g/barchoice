@@ -243,7 +243,7 @@ export default function PurchasesPage() {
               type="text"
               placeholder="Supplier Name"
               value={newSupplier.name}
-              onChange={(e) => setNewSupplier({ .newSupplier, name: e.target.value })}
+              onChange={(e) => setNewSupplier({ ...newSupplier, name: e.target.value })}
               className="w-full border border-gray-200 rounded-2xl p-3 text-sm focus:ring-2 focus:ring-green-400 outline-none"
             />
             <input
@@ -251,7 +251,7 @@ export default function PurchasesPage() {
               placeholder="Contact Person"
               value={newSupplier.contact_person}
               onChange={(e) =>
-                setNewSupplier({ .newSupplier, contact_person: e.target.value })
+                setNewSupplier({ ...newSupplier, contact_person: e.target.value })
               }
               className="w-full border border-gray-200 rounded-2xl p-3 text-sm focus:ring-2 focus:ring-green-400 outline-none"
             />
@@ -260,7 +260,7 @@ export default function PurchasesPage() {
               placeholder="Phone"
               value={newSupplier.phone}
               onChange={(e) =>
-                setNewSupplier({ .newSupplier, phone: e.target.value })
+                setNewSupplier({ ...newSupplier, phone: e.target.value })
               }
               className="w-full border border-gray-200 rounded-2xl p-3 text-sm focus:ring-2 focus:ring-green-400 outline-none"
             />
@@ -269,7 +269,7 @@ export default function PurchasesPage() {
               placeholder="Email"
               value={newSupplier.email}
               onChange={(e) =>
-                setNewSupplier({ .newSupplier, email: e.target.value })
+                setNewSupplier({ ...newSupplier, email: e.target.value })
               }
               className="w-full border border-gray-200 rounded-2xl p-3 text-sm focus:ring-2 focus:ring-green-400 outline-none"
             />
