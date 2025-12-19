@@ -1,5 +1,5 @@
 from flask import Flask
-from extensions import db, bcrypt, jwt, cors
+from extensions import db, bcrypt, jwt, cors, migrate
 from config import Config
 
 # Import blueprints
@@ -35,6 +35,18 @@ def create_app():
     db.init_app(app)
     bcrypt.init_app(app)
     jwt.init_app(app)
+    migrate.init_app(app, db)  # ✅ THIS LINE
+
+    # 👇 IMPORTANT: import models so Alembic sees them
+    from models import (
+        Product, DailyStock, DailyClose, Sale,
+        Debtor, DebtTransaction,
+        Expense, Reconciliation, ReconciliationLine,
+        Supplier, Purchase,
+        WholesaleClient, WholesaleSale,
+        Waiter, WaiterBill,
+        User, FixedAsset, AccountsReceivable,
+        ConversionHistory, CashMovement)
 
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix="/auth")
