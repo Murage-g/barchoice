@@ -2,9 +2,9 @@
 import axios from "axios";
 import { getToken } from "@/utils/storage";
 
-const api = axios.create({
-  baseURL: "https://barpos-production.up.railway.app/api", // Flask backend
-});
+const api = axios.create({ baseURL: "http://127.0.0.1:5000", // 👈 hard-coded backend URL 
+withCredentials: true, });
+
 
 api.interceptors.request.use((config) => {
   const token = getToken();

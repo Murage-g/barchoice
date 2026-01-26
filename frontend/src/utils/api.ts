@@ -1,5 +1,5 @@
 // utils/api.ts
-export const API_BASE_URL = "https://barpos-production.up.railway.app"; // backend URL
+export const API_BASE_URL = "http://127.0.0.1:5000"; // backend URL
 
 export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;

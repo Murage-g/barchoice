@@ -57,7 +57,7 @@ export default function PurchasesPage() {
 
   const checkAuth = async () => {
     try {
-      const res = await api.get("/utils/decorators/check");
+      const res = await api.get("/api/utils/decorators/check");
       if (res.data?.role && ["admin", "cashier"].includes(res.data.role)) {
         setAuthenticated(true);
         setUserRole(res.data.role);
@@ -73,17 +73,17 @@ export default function PurchasesPage() {
   };
 
   const fetchSuppliers = async () => {
-    const res = await api.get("/suppliers");
+    const res = await api.get("/api/suppliers");
     setSuppliers(res.data);
   };
 
   const fetchProducts = async () => {
-    const res = await api.get("/products");
+    const res = await api.get("/api/products");
     setProducts(res.data);
   };
 
   const fetchPurchaseReport = async () => {
-    const res = await api.get("/purchases/report");
+    const res = await api.get("/api/purchases/report");
     setPurchaseReport(res.data.purchases || []);
     setTotalSpent(res.data.total_spent || 0);
   };
@@ -92,7 +92,7 @@ export default function PurchasesPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post("/purchases", {
+      await api.post("/api/purchases", {
         product_id: Number(form.product_id),
         supplier_id: Number(form.supplier_id),
         quantity: Number(form.quantity),
@@ -114,7 +114,7 @@ export default function PurchasesPage() {
       return;
     }
     try {
-      await api.post("/suppliers", newSupplier);
+      await api.post("/api/suppliers", newSupplier);
       alert("✅ Supplier added successfully!");
       fetchSuppliers();
       setNewSupplier({ name: "", contact_person: "", phone: "", email: "" });

@@ -8,7 +8,7 @@ from flask_jwt_extended import (
 )
 from datetime import timedelta
 
-auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
+auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 # --------------------
 # REGISTER

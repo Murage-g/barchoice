@@ -49,3 +49,22 @@ def stock_in():
     product.stock += q
     db.session.commit()
     return jsonify({"message": f"Added {q} units to {product.name}", "product": product.to_dict()}), 200
+
+from sqlalchemy.exc import IntegrityError
+
+@products_bp.route("/products/<int:id>", methods=["DELETE"])
+def delete_product(id):
+    product = Product.query.get(id)
+    if not product:
+        return jsonify({"error": "Product not found"}), 404
+
+    try:
+        db.session.delete(product)
+        db.session.commit()
+        return jsonify({"message": f"Product {id} deleted successfully"}), 200
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error": "Product is referenced elsewhere and cannot be deleted"}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500

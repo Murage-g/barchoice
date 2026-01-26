@@ -7,7 +7,7 @@ from utils.decorators import role_required
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
-@dashboard_bp.route("/api/admin/dashboard", methods=["GET"])
+@dashboard_bp.route("/admin/dashboard", methods=["GET"])
 @jwt_required()
 @role_required("admin")
 def admin_dashboard():

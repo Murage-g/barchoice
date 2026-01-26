@@ -9,6 +9,8 @@ export default function ManageUsers() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+
 
   // -------------------------
   // Load Token (client-side only)
@@ -28,7 +30,7 @@ export default function ManageUsers() {
 
     const fetchUsers = async () => {
       try {
-        const res = await fetch("https://barpos-production.up.railway.app/api/admin/users", {
+        const res = await fetch("http://127.0.0.1:5000/api/admin/users", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -50,21 +52,22 @@ export default function ManageUsers() {
     e.preventDefault();
     setMessage("");
     try {
-      const res = await fetch("https://barpos-production.up.railway.app/api/auth/register", {
+      const res = await fetch("http://127.0.0.1:5000/api/admin/create-user", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ username, password, role }),
+        body: JSON.stringify({ email, username, password, role }),
       });
       const data = await res.json();
       if (res.ok) {
         setMessage("✅ User created successfully");
         setUsername("");
         setPassword("");
+        setEmail("");
         setRole("cashier");
-        setUsers((prev) => [...prev, { ...data.user, username, role }]);
+        setUsers((prev) => [...prev, { ...data.user, email, username, role }]);
       } else {
         setMessage(`❌ ${data.msg || "Failed to create user"}`);
       }
@@ -78,7 +81,7 @@ export default function ManageUsers() {
   // -------------------------
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this user?")) return;
-    const res = await fetch(`https://barpos-production.up.railway.app/api/admin/users/${id}`, {
+    const res = await fetch(`http://127.0.0.1:5000/api/admin/users/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -95,7 +98,7 @@ export default function ManageUsers() {
   // Upgrade/Demote User Role
   // -------------------------
   const handleUpgrade = async (id: number, newRole: string) => {
-    const res = await fetch(`https://barpos-production.up.railway.app/api/admin/users/${id}/role`, {
+    const res = await fetch(`http://127.0.0.1:5000/api/admin/users/${id}/role`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -126,6 +129,15 @@ export default function ManageUsers() {
 
         {/* Form */}
         <form onSubmit={handleRegister} className="space-y-3">
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+          />
+
           <input
             type="text"
             placeholder="Username"

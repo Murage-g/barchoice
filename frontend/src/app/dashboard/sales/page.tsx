@@ -22,7 +22,7 @@ export default function SalesPage() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/products");
+      const res = await api.get("/api/products");
       setProducts(res.data);
       const init: Record<number, number> = {};
       res.data.forEach((p: Product) => (init[p.id] = p.stock));
@@ -64,7 +64,7 @@ export default function SalesPage() {
         product_id: parseInt(id),
         closing_stock: val,
       }));
-      const res = await api.post("/daily_close", { items });
+      const res = await api.post("/api/daily_close", { items });
       alert(res.data.message);
       fetchProducts();
     } catch (err) {

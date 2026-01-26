@@ -25,12 +25,21 @@ def create_app():
 
     # Initialize extensions
     cors.init_app(
-        app,
-        resources={r"/*": {"origins": "https://upbeat-wisdom-production-89f0.up.railway.app"}},
-        supports_credentials=True,
-        allow_headers=["Content-Type", "Authorization"],
-        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    )
+    app,
+    resources={
+        r"/*": {
+            "origins": [
+                "http://10.162.12.63:3000",
+                "http://127.0.0.1:3000",
+                "http://localhost:3000"   # 👈 add this
+            ]
+        }
+    },
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+)
+
 
     db.init_app(app)
     bcrypt.init_app(app)
@@ -73,4 +82,4 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000,debug=True)

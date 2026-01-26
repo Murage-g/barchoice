@@ -31,17 +31,29 @@ def get_current_user():
 @role_bp.route("/admin/create-user", methods=["POST"])
 @role_required("admin")
 def create_user():
-    data = request.get_json()
+    data = request.get_json() or {}
 
-    if not data.get("username") or not data.get("password"):
-        return jsonify({"error": "Missing username or password"}), 400
+    username = data.get("username")
+    email = data.get("email")
+    password = data.get("password")
+    role = data.get("role", "cashier")
 
-    if User.query.filter_by(username=data["username"]).first():
-        return jsonify({"error": "User already exists"}), 400
+    # Validate required fields
+    if not username or not password or not email:
+        return jsonify({"error": "Missing username, email, or password"}), 400
 
-    user = User(username=data["username"], role=data.get("role", "cashier"))
-    user.set_password(data["password"])
+    # Check duplicates
+    if User.query.filter_by(username=username).first():
+        return jsonify({"error": "Username already exists"}), 400
+    if User.query.filter_by(email=email).first():
+        return jsonify({"error": "Email already exists"}), 400
+
+    # Create user
+    user = User(username=username, email=email, role=role)
+    user.set_password(password)
+
     db.session.add(user)
     db.session.commit()
 
     return jsonify(user.to_dict()), 201
+

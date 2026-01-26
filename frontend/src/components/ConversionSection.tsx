@@ -12,7 +12,7 @@ export default function ConversionSection({ onStockUpdate }: { onStockUpdate: (u
   const [message, setMessage] = useState<{ text: string; type: string }>({ text: "", type: "" });
 
   useEffect(() => {
-    fetch("https://barpos-production.up.railway.app/api/tot_products")
+    fetch("http://127.0.0.1:5000/api/tot_products")
       .then((res) => res.json())
       .then((data) => setTotProducts(data))
       .catch(() => setMessage({ text: "Failed to load TOT products", type: "error" }));
@@ -24,7 +24,7 @@ export default function ConversionSection({ onStockUpdate }: { onStockUpdate: (u
     setMessage({ text: "Processing.", type: "info" });
 
     try {
-      const response = await fetch("https://barpos-production.up.railway.app/api/convert", {
+      const response = await fetch("http://127.0.0.1:5000/api/convert", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ product_name: selectedProduct }),
@@ -59,7 +59,7 @@ export default function ConversionSection({ onStockUpdate }: { onStockUpdate: (u
   const fetchHistory = async () => {
     try {
       console.log("Fetch History")
-      const res = await api.get("/conversions/history");
+      const res = await api.get("/api/conversions/history");
       console.log("Fetch History Okay")
       setHistory(res.data);
     } catch (err) {

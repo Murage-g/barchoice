@@ -13,24 +13,10 @@ purchases_bp = Blueprint("purchases_bp", __name__, url_prefix="/api")
 def to_dict(model):
     return {c.name: getattr(model, c.name) for c in model.__table__.columns}
 
-
-# ----------------------------------------------------------------
-# ✅ CORS preflight handler (global for this blueprint)
-# ----------------------------------------------------------------
-@purchases_bp.route("/suppliers", methods=["OPTIONS"])
-@purchases_bp.route("/purchases", methods=["OPTIONS"])
-@purchases_bp.route("/purchases/report", methods=["OPTIONS"])
-@cross_origin(origins=["${process.env.NEXT_PUBLIC_API_URL}"], supports_credentials=True)
-def handle_options():
-    """Handle CORS preflight requests gracefully."""
-    return "", 200
-
-
 # ----------------------------------------------------------------
 # ✅ SUPPLIER MANAGEMENT
 # ----------------------------------------------------------------
 @purchases_bp.route("/suppliers", methods=["GET"])
-@cross_origin(origins=["${process.env.NEXT_PUBLIC_API_URL}"], supports_credentials=True)
 @jwt_required()
 @role_required("cashier", "admin")
 def get_suppliers():
@@ -39,7 +25,6 @@ def get_suppliers():
 
 
 @purchases_bp.route("/suppliers", methods=["POST"])
-@cross_origin(origins=["${process.env.NEXT_PUBLIC_API_URL}"], supports_credentials=True)
 @jwt_required()
 @role_required("cashier", "admin")
 def add_supplier():
@@ -60,7 +45,6 @@ def add_supplier():
 
 
 @purchases_bp.route("/suppliers/<int:id>", methods=["PUT"])
-@cross_origin(origins=["${process.env.NEXT_PUBLIC_API_URL}"], supports_credentials=True)
 @jwt_required()
 @role_required("cashier", "admin")
 def update_supplier(id):
@@ -73,7 +57,6 @@ def update_supplier(id):
 
 
 @purchases_bp.route("/suppliers/<int:id>", methods=["DELETE"])
-@cross_origin(origins=["${process.env.NEXT_PUBLIC_API_URL}"], supports_credentials=True)
 @jwt_required()
 @role_required("cashier", "admin")
 def delete_supplier(id):
@@ -87,7 +70,6 @@ def delete_supplier(id):
 # ✅ PURCHASE MANAGEMENT
 # ----------------------------------------------------------------
 @purchases_bp.route("/purchases", methods=["GET"])
-@cross_origin(origins=["${process.env.NEXT_PUBLIC_API_URL}"], supports_credentials=True)
 @jwt_required()
 @role_required("cashier", "admin")
 def get_purchases():
@@ -96,7 +78,6 @@ def get_purchases():
 
 
 @purchases_bp.route("/purchases", methods=["POST"])
-@cross_origin(origins=["${process.env.NEXT_PUBLIC_API_URL}"], supports_credentials=True)
 @jwt_required()
 @role_required("cashier", "admin")
 def add_purchase():
@@ -140,7 +121,6 @@ def add_purchase():
 # ✅ PURCHASE REPORT
 # ----------------------------------------------------------------
 @purchases_bp.route("/purchases/report", methods=["GET"])
-@cross_origin(origins=["${process.env.NEXT_PUBLIC_API_URL}"], supports_credentials=True)
 @jwt_required()
 @role_required("cashier", "admin")
 def purchase_report():

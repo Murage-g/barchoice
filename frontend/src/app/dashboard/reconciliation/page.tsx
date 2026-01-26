@@ -25,7 +25,7 @@ export default function ReconciliationPage() {
 
   async function fetchSummary() {
     try {
-      const res = await api.get(`/recon/summary?date=${date}`);
+      const res = await api.get(`/api/recon/summary?date=${date}`);
       setSalesTotal(res.data.total_sales || 0);
       setExpensesTotal(res.data.total_expenses || 0);
     } catch (err) {
@@ -62,7 +62,7 @@ export default function ReconciliationPage() {
         notes,
         lines: lines.map((l) => ({ kind: l.kind, description: l.description, amount: Number(l.amount || 0) })),
       };
-      const res = await api.post("/recon/create", payload);
+      const res = await api.post("/api/recon/create", payload);
       alert("Saved");
       // reset
       setLines([]);

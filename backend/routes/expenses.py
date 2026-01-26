@@ -1,7 +1,6 @@
 # backend/routes/expenses_routes.py
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_cors import cross_origin
 from utils.decorators import role_required
 from models.reconciliation import Expense
 from extensions import db
@@ -67,8 +66,7 @@ def create_expense():
     return jsonify({"message": "Expense created", "expense": exp.to_dict()}), 201
 
 
-@expenses_bp.route("/expenses/<int:expense_id>", methods=["PUT", "OPTIONS"])
-@cross_origin()
+@expenses_bp.route("/expenses/<int:expense_id>", methods=["PUT"])
 @jwt_required()
 @role_required("admin", "cashier")
 def update_expense(expense_id):
@@ -89,8 +87,7 @@ def update_expense(expense_id):
     db.session.commit()
     return jsonify({"message": "Expense updated", "expense": exp.to_dict()}), 200
 
-@expenses_bp.route("/expenses/<int:expense_id>", methods=["DELETE", "OPTIONS"])
-@cross_origin()
+@expenses_bp.route("/expenses/<int:expense_id>", methods=["DELETE"])
 @jwt_required()
 @role_required("admin", "cashier")
 def delete_expense(expense_id):

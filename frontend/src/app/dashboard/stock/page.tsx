@@ -27,7 +27,7 @@ export default function ProductsPage() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/products");
+      const res = await api.get("/api/products");
       setProducts(res.data);
     } catch (err) {
       console.error(err);
@@ -43,7 +43,7 @@ export default function ProductsPage() {
   const addProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await api.post("/products", {
+      const res = await api.post("/api/products", {
         name: form.name.trim(),
         stock: parseInt(form.stock),
         unit_price: parseFloat(form.unit_price),
@@ -61,10 +61,11 @@ export default function ProductsPage() {
     if (!confirm("Are you sure you want to delete this product?")) return;
     setDeleting(id);
     try {
-      await api.delete(`/products/${id}`);
+      await api.delete(`/api/products/${id}`);
       setProducts((prev) => prev.filter((p) => p.id !== id));
-    } catch (err) {
-      alert("Error deleting product");
+    } catch (err: any) {
+      alert(err.response?.data?.error || "Error deleting product");
+
     } finally {
       setDeleting(null);
     }

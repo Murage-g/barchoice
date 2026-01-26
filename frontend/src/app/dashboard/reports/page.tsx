@@ -97,15 +97,15 @@ export default function ReportsPage() {
       const params = `?start_date=${start}&end_date=${end}`;
 
       const [pl, bs, cf] = await Promise.all([
-        axios.get(`https://barpos-production.up.railway.app/api/reports/profit_loss${params}`, {
+        axios.get(`http://127.0.0.1:5000/api/reports/profit_loss${params}`, {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true,
         }),
-        axios.get(`https://barpos-production.up.railway.app/api/reports/balance_sheet`, {
+        axios.get(`http://127.0.0.1:5000/api/reports/balance_sheet`, {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true,
         }),
-        axios.get(`https://barpos-production.up.railway.app/api/reports/cash_flow${params}`, {
+        axios.get(`http://127.0.0.1:5000/api/reports/cash_flow${params}`, {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true,
         }),

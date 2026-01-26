@@ -26,7 +26,7 @@ export default function ExpensesPage() {
   async function fetchExpenses(date?: string) {
     setLoading(true);
     try {
-      const url = date ? `/expenses?date=${date}` : "/expenses";
+      const url = date ? `/api/expenses?date=${date}` : "/api/expenses";
       const res = await api.get(url);
       setExpenses(res.data || []);
     } catch (err) {
@@ -46,10 +46,10 @@ export default function ExpensesPage() {
         amount: parseFloat(form.amount || "0"),
       };
       if (editing) {
-        await api.put(`/expenses/${editing}`, body);
+        await api.put(`/api/expenses/${editing}`, body);
         setEditing(null);
       } else {
-        await api.post("/expenses", body);
+        await api.post("/api/expenses", body);
       }
       setForm({ date: "", category: "", description: "", amount: "" });
       fetchExpenses();
@@ -66,7 +66,7 @@ export default function ExpensesPage() {
   async function deleteExpense(id: number) {
     if (!confirm("Delete this expense?")) return;
     try {
-      await api.delete(`/expenses/${id}`);
+      await api.delete(`/api/expenses/${id}`);
       fetchExpenses();
     } catch (err) {
       alert("Failed to delete");
