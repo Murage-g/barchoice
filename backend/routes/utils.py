@@ -1,7 +1,7 @@
 # backend/routes/utils.py
 from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models.user import User
+from ..models.user import User
 
 utils_bp = Blueprint("utils_bp", __name__, url_prefix="/api/utils")
 

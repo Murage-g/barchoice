@@ -1,8 +1,8 @@
 # backend/routes/auth_routes.py
 from flask import Blueprint, request, jsonify
-from extensions import db, bcrypt
-from models.user import User
-from utils.decorators import role_required
+from ..extensions import db, bcrypt
+from ..models.user import User
+from ..utils.decorators import role_required
 from flask_jwt_extended import (
     create_access_token, jwt_required, get_jwt_identity
 )
@@ -58,7 +58,7 @@ def login():
 
     return jsonify({
         "token": token,
-        "user": {"id": user.id, "username": user.username, "role": user.role}
+        "user": {"id": user.id, "email": user.email, "username": user.username, "role": user.role}
     }), 200
 
 

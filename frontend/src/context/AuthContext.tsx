@@ -26,10 +26,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    if (typeof window !== "undefined") { // ✅ Only run in browser
+    if (typeof window !== "undefined") {
       const token = localStorage.getItem("token");
       const userData = localStorage.getItem("user");
-      if (token && userData) setUser(JSON.parse(userData));
+
+      if (token && userData && userData !== "undefined") {
+        try {
+          setUser(JSON.parse(userData));
+        } catch (err) {
+          console.error("Invalid JSON in localStorage:", userData);
+          setUser(null);
+        }
+      }
     }
     setLoading(false);
   }, []);
@@ -42,13 +50,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify({ email, password }),
       });
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      setUser(data.user);
+      // ✅ Only store valid JSON
+      if (data?.token && data?.user) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        setUser(data.user);
 
-      // Redirect by role
-      if (data.user.role === "admin") router.push("/dashboard/admin");
-      else router.push("/cashier/dashboard");
+        // Redirect by role
+        if (data.user.role === "admin") router.push("/dashboard/admin");
+        else router.push("/cashier/dashboard");
+      } else {
+        console.error("Login response missing token or user:", data);
+      }
     } catch (err: any) {
       alert(err.message);
     } finally {

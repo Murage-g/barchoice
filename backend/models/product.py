@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from extensions import db
+from ..extensions import db
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)

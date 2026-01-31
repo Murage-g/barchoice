@@ -2,8 +2,8 @@
 from flask import Blueprint, jsonify
 from flask_jwt_extended import get_jwt, jwt_required
 from datetime import datetime
-from models import DailyClose, Product, Debtor
-from utils.decorators import role_required
+from ..models import DailyClose, Product, Debtor
+from ..utils.decorators import role_required
 
 dashboard_bp = Blueprint("dashboard", __name__)
 

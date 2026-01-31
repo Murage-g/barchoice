@@ -1,6 +1,6 @@
 # backend/models/reconciliation.py
 from datetime import datetime
-from extensions import db
+from ..extensions import db
 
 class Expense(db.Model):
     __tablename__ = "expense"

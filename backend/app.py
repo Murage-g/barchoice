@@ -1,23 +1,25 @@
 from flask import Flask
-from extensions import db, bcrypt, jwt, cors, migrate
-from config import Config
+from flask_migrate import Migrate
+from .extensions import db, bcrypt, jwt, cors
+from .config import Config
 
 # Import blueprints
-from routes.auth_routes import auth_bp
-from routes.role_routes import role_bp
-from routes.admin import admin_bp
-from routes.dashboard import dashboard_bp
-from routes.product_routes import products_bp
-from routes.sales_routes import sales_bp
-from routes.purchases import purchases_bp
-from routes.utils import utils_bp
-from routes.conversion import conversion_bp
-from routes.reconciliation import recon_bp
-from routes.expenses import expenses_bp
-from routes.reports_bp import reports_bp
+from .routes.auth_routes import auth_bp
+from .routes.role_routes import role_bp
+from .routes.admin import admin_bp
+from .routes.dashboard import dashboard_bp
+from .routes.product_routes import products_bp
+from .routes.sales_routes import sales_bp
+from .routes.purchases import purchases_bp
+from .routes.utils import utils_bp
+from .routes.conversion import conversion_bp
+from .routes.reconciliation import recon_bp
+from .routes.expenses import expenses_bp
+from .routes.reports_bp import reports_bp
 
 import os
 
+migrate = Migrate()
 
 def create_app():
     app = Flask(__name__)
@@ -44,10 +46,10 @@ def create_app():
     db.init_app(app)
     bcrypt.init_app(app)
     jwt.init_app(app)
-    migrate.init_app(app, db)  # ✅ THIS LINE
+    migrate.init_app(app, db)
 
     # 👇 IMPORTANT: import models so Alembic sees them
-    from models import (
+    from .models import (
         Product, DailyStock, DailyClose, Sale,
         Debtor, DebtTransaction,
         Expense, Reconciliation, ReconciliationLine,

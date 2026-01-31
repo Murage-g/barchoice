@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from datetime import datetime
-from models import Product, Supplier, Purchase
-from utils.decorators import role_required
-from extensions import db
+from ..models import Product, Supplier, Purchase
+from ..utils.decorators import role_required
+from ..extensions import db
 from flask_cors import cross_origin
 
 purchases_bp = Blueprint("purchases_bp", __name__, url_prefix="/api")

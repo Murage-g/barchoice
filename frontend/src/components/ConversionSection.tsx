@@ -12,7 +12,7 @@ export default function ConversionSection({ onStockUpdate }: { onStockUpdate: (u
   const [message, setMessage] = useState<{ text: string; type: string }>({ text: "", type: "" });
 
   useEffect(() => {
-    fetch("http://127.0.0.1:5000/api/tot_products")
+    fetch("/api/tot_products")
       .then((res) => res.json())
       .then((data) => setTotProducts(data))
       .catch(() => setMessage({ text: "Failed to load TOT products", type: "error" }));
@@ -24,7 +24,7 @@ export default function ConversionSection({ onStockUpdate }: { onStockUpdate: (u
     setMessage({ text: "Processing.", type: "info" });
 
     try {
-      const response = await fetch("http://127.0.0.1:5000/api/convert", {
+      const response = await fetch("/api/convert", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ product_name: selectedProduct }),
