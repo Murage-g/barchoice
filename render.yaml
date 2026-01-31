@@ -4,7 +4,6 @@ services:
     env: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    buildContext: .
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -20,7 +19,6 @@ services:
     env: docker
     plan: free
     dockerfilePath: ./frontend/Dockerfile
-    buildContext: ./frontend
     envVars:
       - key: NEXT_PUBLIC_API_URL
         value: https://barpos-backend.onrender.com
