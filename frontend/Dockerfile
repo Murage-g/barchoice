@@ -3,12 +3,14 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Copy package.json and lock file from frontend folder
+COPY ./frontend/package*.json ./
+
 # Install dependencies
-COPY package*.json ./
 RUN npm install
 
-# Copy all code
-COPY . ./
+# Copy all frontend code
+COPY ./frontend ./
 
 # Build Next.js app
 RUN npm run build
