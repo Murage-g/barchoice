@@ -77,6 +77,10 @@ def create_app():
     @app.route("/")
     def health():
         return {"status": "ok"}, 200
+    
+    print("Registered routes:")
+    for rule in app.url_map.iter_rules():
+        print(rule)
 
 
     return app
