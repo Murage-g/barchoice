@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { apiRequest } from "@/utils/api";
+// import { apiRequest } from "@/utils/api";
+import api from "@/lib/api";
 
 interface User {
   id: number;
@@ -45,18 +46,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const data = await apiRequest("/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
+      const res = await api.post("/auth/login", { email, password });
+      const data = res.data;
 
-      // ✅ Only store valid JSON
       if (data?.token && data?.user) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
         setUser(data.user);
 
-        // Redirect by role
         if (data.user.role === "admin") router.push("/dashboard/admin");
         else router.push("/cashier/dashboard");
       } else {
@@ -68,6 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     }
   };
+
 
   const logout = () => {
     localStorage.removeItem("token");

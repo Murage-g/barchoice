@@ -3,7 +3,7 @@ import axios from "axios";
 import { getToken } from "@/utils/storage";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000", // 👈 dynamic backend URL
+  baseURL: process.env.NEXT_PUBLIC_API_URL, // 👈 dynamic backend URL
   withCredentials: true,
 });
 

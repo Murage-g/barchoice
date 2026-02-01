@@ -23,6 +23,7 @@ export default function LoginPage() {
 
     try {
       await login(formData.email, formData.password);
+      console.log("API URL:", process.env.NEXT_PUBLIC_API_URL);
       // login function handles redirect internally
     } catch (err: any) {
       setError(err.message || "Login failed");

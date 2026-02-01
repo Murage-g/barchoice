@@ -1,8 +1,13 @@
 // utils/api.ts
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"; // ✅ fallback for local dev
 
-export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+export const apiRequest = async (
+  endpoint: string,
+  options: RequestInit = {}
+) => {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
   const res = await fetch(`${API_BASE_URL}${endpoint}`, {
     headers: {
@@ -12,10 +17,13 @@ export const apiRequest = async (endpoint: string, options: RequestInit = {}) =>
     ...options,
   });
 
+  // If backend returns non‑JSON (e.g. 404 HTML), handle gracefully
   const text = await res.text();
   try {
     return JSON.parse(text);
   } catch {
-    throw new Error(`Invalid JSON response: ${text}`);
+    throw new Error(
+      `Invalid JSON response from ${API_BASE_URL}${endpoint}: ${text}`
+    );
   }
 };
