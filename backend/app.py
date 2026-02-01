@@ -33,7 +33,8 @@ def create_app():
             "origins": [
                 "http://10.162.12.63:3000",
                 "http://127.0.0.1:3000",
-                "http://localhost:3000"   # 👈 add this
+                "http://localhost:3000",
+                "https://barpos-frontend.onrender.com"
             ]
         }
     },
