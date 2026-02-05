@@ -21,7 +21,7 @@ services:
     dockerfilePath: ./frontend/Dockerfile
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        value: https://barpos-backend.onrender.com
+        value: https://barpos-backend-l4w0.onrender.com
 
 databases:
   - name: barpos-db

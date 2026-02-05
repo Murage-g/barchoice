@@ -60,7 +60,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error("Login response missing token or user:", data);
       }
     } catch (err: any) {
+    if (err.response) {
+      console.error("Backend error:", err.response.data);
+      alert(err.response.data?.msg || "Login failed");
+    } else if (err.request) {
+      console.error("No response from backend:", err.request);
+      alert("Cannot reach backend — check your API URL");
+    } else {
+      console.error("Axios error:", err.message);
       alert(err.message);
+    }
     } finally {
       setLoading(false);
     }

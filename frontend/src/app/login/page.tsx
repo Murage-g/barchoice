@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPage() {
+  console.log("API URL (frontend build):", process.env.NEXT_PUBLIC_API_URL);
+
   const router = useRouter();
   const { login } = useAuth();
 
