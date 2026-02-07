@@ -2,13 +2,15 @@
 import axios from "axios";
 import { getToken } from "@/utils/storage";
 
-const BASE_URL =
-  (process.env.NEXT_PUBLIC_API_URL || "https://barpos-backend-l4w0.onrender.com")
-    .replace(/\/$/, ""); // remove trailing slash
+const API_BASE_URL =
+  typeof window !== "undefined" &&
+  window.location.hostname.includes("onrender.com")
+    ? "https://barpos-backend-l4w0.onrender.com"
+    : "http://localhost:5000";
 
 
 const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_BASE_URL,
   withCredentials: true,
 });
 

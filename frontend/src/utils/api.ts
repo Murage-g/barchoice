@@ -1,7 +1,13 @@
 // utils/api.ts
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"; // ✅ fallback for local dev
 
+// Decide backend URL based on environment (Render vs local)
+export const API_BASE_URL =
+  typeof window !== "undefined" &&
+  window.location.hostname.includes("onrender.com")
+    ? "https://barpos-backend-l4w0.onrender.com"
+    : "http://localhost:5000";
+
+// Normalize endpoint + base URL and make request
 export const apiRequest = async (
   endpoint: string,
   options: RequestInit = {}
@@ -9,7 +15,14 @@ export const apiRequest = async (
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+  // Ensure we don’t end up with double slashes
+  const cleanEndpoint = endpoint.startsWith("/")
+    ? endpoint
+    : `/${endpoint}`;
+
+  const url = `${API_BASE_URL}${cleanEndpoint}`;
+
+  const res = await fetch(url, {
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -17,13 +30,13 @@ export const apiRequest = async (
     ...options,
   });
 
-  // If backend returns non‑JSON (e.g. 404 HTML), handle gracefully
   const text = await res.text();
+
   try {
     return JSON.parse(text);
   } catch {
     throw new Error(
-      `Invalid JSON response from ${API_BASE_URL}${endpoint}: ${text}`
+      `Invalid JSON response from ${url}: ${text || "Empty response"}`
     );
   }
 };
