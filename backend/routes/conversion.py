@@ -65,31 +65,21 @@ def convert_to_tots():
     "tot_stock": tot_product.stock
 }), 200
 
-@conversion_bp.route("/conversions/undo", methods=["POST"])
+# --- Conversion history ---
+@conversion_bp.route("/api/conversions/history", methods=["GET"])
 @jwt_required()
 def get_conversion_history():
     try:
-        history = ConversionHistory.query.order_by(ConversionHistory.id.desc()).limit(50).all()
-        data = [
-            {
-                "id": h.id,
-                "bottle_name": h.bottle.name,
-                "tot_name": h.tot.name,
-                "prev_bottle_stock": h.prev_bottle_stock,
-                "prev_tot_stock": h.prev_tot_stock,
-                "new_bottle_stock": h.new_bottle_stock,
-                "new_tot_stock": h.new_tot_stock,
-                "timestamp": h.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-            }
-            for h in history
-        ]
+        history = ConversionHistory.query.order_by(ConversionHistory.timestamp.desc()).limit(50).all()
+        data = [h.to_dict() for h in history]
         return jsonify(data), 200
     except Exception as e:
         print(f"Error fetching conversion history: {e}")
         return jsonify({"error": "Failed to load history"}), 500
 
-
+# --- Undo conversion ---
 @conversion_bp.route("/api/conversions/undo", methods=["POST"])
+@jwt_required()
 def undo_conversion():
     data = request.get_json()
     conversion_id = data.get("conversion_id")
@@ -120,12 +110,4 @@ def undo_conversion():
         }), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
-
-@conversion_bp.route("/api/conversions/history", methods=["GET"])
-def get_conversion_historynow():
-    try:
-        history = ConversionHistory.query.order_by(ConversionHistory.timestamp.desc()).all()
-        return jsonify([h.to_dict() for h in history]), 200
-    except Exception as e:
         return jsonify({"error": str(e)}), 500

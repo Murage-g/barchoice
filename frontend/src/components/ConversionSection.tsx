@@ -12,11 +12,19 @@ export default function ConversionSection({ onStockUpdate }: { onStockUpdate: (u
   const [message, setMessage] = useState<{ text: string; type: string }>({ text: "", type: "" });
 
   useEffect(() => {
-    fetch("/api/tot_products")
-      .then((res) => res.json())
-      .then((data) => setTotProducts(data))
-      .catch(() => setMessage({ text: "Failed to load TOT products", type: "error" }));
+    const fetchTotProducts = async () => {
+      try {
+        const res = await api.get("/api/tot_products"); // <-- uses axios with baseURL
+        setTotProducts(res.data);
+      } catch (err) {
+        console.error("Failed to load TOT products", err);
+        setMessage({ text: "Failed to load TOT products", type: "error" });
+      }
+    };
+
+    fetchTotProducts();
   }, []);
+
 
   const performConversion = async () => {
     if (!selectedProduct) return;
