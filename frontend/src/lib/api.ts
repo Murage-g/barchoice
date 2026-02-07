@@ -5,7 +5,7 @@ import { getToken } from "@/utils/storage";
 const API_BASE_URL =
   typeof window !== "undefined" &&
   window.location.hostname.includes("onrender.com")
-    ? "https://barpos-backend-l4w0.onrender.com"
+    ? "https://barpos-backend-sur2.onrender.com"
     : "http://localhost:5000";
 
 
