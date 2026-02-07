@@ -93,5 +93,24 @@ app = create_app()
 with app.app_context():
     db.create_all()
 
+    # 🔥 SEED DEFAULT ADMIN USER IF NOT EXISTS 🔥
+    from backend.models.user import User
+
+    admin_email = "admin@barpos.local"
+
+    existing = User.query.filter_by(email=admin_email).first()
+    if not existing:
+        admin = User(
+            username="admin",
+            email=admin_email,
+            role="admin"
+        )
+        admin.set_password("admin123")  # <-- default password
+        db.session.add(admin)
+        db.session.commit()
+        print("✅ Seeded default admin user")
+    else:
+        print("ℹ️ Admin user already exists")
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
