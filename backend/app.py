@@ -89,8 +89,9 @@ def create_app():
 
 app = create_app()
 
-# Ensure tables exist when running with gunicorn
-@app.before_first_request
-def create_tables():
-    with app.app_context():
-        db.create_all()
+# Ensure tables exist (works with Gunicorn + Render Free)
+with app.app_context():
+    db.create_all()
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
