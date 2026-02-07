@@ -27,43 +27,42 @@ export default function ConversionSection({ onStockUpdate }: { onStockUpdate: (u
 
 
   const performConversion = async () => {
-    if (!selectedProduct) return;
-    setIsConverting(true);
-    setMessage({ text: "Processing.", type: "info" });
+  if (!selectedProduct) return;
 
-    try {
-      const response = await fetch("/api/convert", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ product_name: selectedProduct }),
-        credentials: "include",
-      });
+  setIsConverting(true);
+  setMessage({ text: "Processing.", type: "info" });
 
-      const result = await response.json();
+  try {
+    // Use your api instance
+    const res = await api.post("/api/convert", { product_name: selectedProduct });
 
-      if (response.ok) {
-        setMessage({
-          text: result.message,
-          type: "success",
-        });
-        setSelectedProduct("");
+    // Success
+    setMessage({
+      text: res.data.message,
+      type: "success",
+    });
 
-        // 🔁 Notify parent with new stock values
-        onStockUpdate({
-          bottle_name: result.bottle_name,
-          bottle_stock: result.bottle_stock,
-          tot_name: selectedProduct,
-          tot_stock: result.tot_stock,
-        });
-      } else {
-        setMessage({ text: `Conversion Failed: ${result.error}`, type: "error" });
-      }
-    } catch (err) {
-      setMessage({ text: "Network error — check connection.", type: "error" });
-    } finally {
-      setIsConverting(false);
-    }
-  };
+    // Clear selection
+    setSelectedProduct("");
+
+    // 🔁 Notify parent with new stock values
+    onStockUpdate({
+      bottle_name: res.data.bottle_name,
+      bottle_stock: res.data.bottle_stock,
+      tot_name: selectedProduct,
+      tot_stock: res.data.tot_stock,
+    });
+  } catch (err: any) {
+    // Handle backend error
+    setMessage({
+      text: err.response?.data?.error || "Conversion failed — check server",
+      type: "error",
+    });
+  } finally {
+    setIsConverting(false);
+  }
+};
+
   const fetchHistory = async () => {
     try {
       console.log("Fetch History")
