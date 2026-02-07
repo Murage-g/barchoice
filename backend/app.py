@@ -34,7 +34,6 @@ def create_app():
                 "http://10.162.12.63:3000",
                 "http://127.0.0.1:3000",
                 "http://localhost:3000",
-                "https://barpos-frontend.onrender.com",
                 "https://barpos-frontend-sur2.onrender.com"
 
             ]
@@ -90,5 +89,8 @@ def create_app():
 
 app = create_app()
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000,debug=True)
+# Ensure tables exist when running with gunicorn
+@app.before_first_request
+def create_tables():
+    with app.app_context():
+        db.create_all()
