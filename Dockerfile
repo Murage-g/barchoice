@@ -15,4 +15,4 @@ COPY backend/ ./backend
 EXPOSE 5000
 
 # Run Gunicorn with backend.app:app
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "backend.app:app"]
+CMD flask db upgrade && gunicorn backend.app:app -b 0.0.0.0:5000
