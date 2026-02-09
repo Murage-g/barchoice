@@ -13,6 +13,7 @@ services:
         value: supersecret
       - key: SECRET_KEY
         value: anothersecret
+    releaseCommand: flask --app backend.app:create_app db upgrade
 
   - type: web
     name: barpos-frontend
