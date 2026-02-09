@@ -18,4 +18,4 @@ ENV FLASK_APP=backend.app
 EXPOSE 5000
 
 # Run Gunicorn with backend.app:app
-CMD ["sh", "backend/entrypoint.sh"]
+CMD ["./backend/entrypoint.sh"]
