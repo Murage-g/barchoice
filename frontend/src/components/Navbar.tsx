@@ -81,6 +81,12 @@ export default function Navbar() {
                 <Link href="/dashboard/more" className="hover:text-yellow-200 transition">
                   More
                 </Link>
+                <Link href="/dashboard/waiters" className="hover:text-yellow-200 transition">
+                  Waiters
+                </Link>
+                <Link href="/dashboard/debtors" className="hover:text-yellow-200 transition">
+                  Debtors
+                </Link>
               </>
             )}
           </div>
@@ -140,6 +146,15 @@ export default function Navbar() {
                 </Link>
                 <Link href="/dashboard/reconciliation" className="hover:text-yellow-300" onClick={toggleMenu}>
                   Reports
+                </Link>
+                <Link href="/dashboard/more" className="hover:text-yellow-300" onClick={toggleMenu}>
+                  More
+                </Link>
+                <Link href="/dashboard/waiters" className="hover:text-yellow-300" onClick={toggleMenu}>
+                  Waiters
+                </Link>
+                <Link href="/dashboard/debtors" className="hover:text-yellow-300" onClick={toggleMenu}>
+                  Debtors
                 </Link>
               </>
             )}

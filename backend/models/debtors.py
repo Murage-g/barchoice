@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from ..extensions import db
 
 class Debtor(db.Model):
@@ -26,6 +26,7 @@ class DebtTransaction(db.Model):
     description = db.Column(db.String(255))
     issued_by = db.Column(db.String(80))
     date = db.Column(db.DateTime, default=datetime.utcnow)
+    due_date = db.Column(db.DateTime, nullable=False, default=lambda: datetime.utcnow() + timedelta(days=5))
 
     def to_dict(self):
         return {
@@ -37,4 +38,5 @@ class DebtTransaction(db.Model):
             "description": self.description,
             "issued_by": self.issued_by,
             "date": self.date.isoformat(),
+            "due_date": self.due_date.isoformat(),
         }

@@ -1,7 +1,7 @@
 import os
 
 class Config:
-    # Get database URL from Render
+    # Get database URL from environment or fallback to local
     db_url = os.getenv(
         "DATABASE_URL",
         "postgresql://postgres:openpgpwd@localhost:5432/barpos"
@@ -11,9 +11,10 @@ class Config:
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-    # Ensure SSL is enabled for Render
-    if "sslmode" not in db_url:
-        db_url = f"{db_url}?sslmode=require"
+    # Only enforce SSL if we're on Render (DATABASE_URL is set)
+    if "DATABASE_URL" in os.environ:
+        if "sslmode" not in db_url:
+            db_url = f"{db_url}?sslmode=require"
 
     SQLALCHEMY_DATABASE_URI = db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False

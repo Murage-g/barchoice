@@ -5,9 +5,9 @@ from ..utils.decorators import role_required
 from ..extensions import db
 from ..models.reconciliation import Reconciliation, ReconciliationLine
 from ..models import DailyClose, Product  # adjust import path if your models are elsewhere
-from ..models import Debtor  # example if needed
+from ..models import Debtor, DebtTransaction, Waiter, WaiterBill
 from ..models.cashmovements import CashMovement
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from ..utils.expense_helpers import record_expense
 
 recon_bp = Blueprint("recon_bp", __name__, url_prefix="/api/recon")
@@ -28,7 +28,6 @@ def create_reconciliation():
         notes = data.get("notes", "")
         lines = data.get("lines", [])
 
-        # Record Mpesa and Cash inflows
         inflows = [
             {"source": "Mpesa Till 1", "amount": mpesa1},
             {"source": "Mpesa Till 2", "amount": mpesa2},
@@ -47,17 +46,17 @@ def create_reconciliation():
                     recorded_by=user,
                 ))
 
-        # Record adjustment lines (expenses, sales, other)
+        # Handle adjustment lines
         for line in lines:
             kind = line.get("kind")
             desc = line.get("description", "")
             amount = float(line.get("amount", 0))
+            related_id = line.get("relatedId")
 
             if amount == 0:
                 continue
 
             if kind == "expense":
-                # record expense + cash movement automatically
                 record_expense(
                     date=date,
                     amount=amount,
@@ -74,6 +73,29 @@ def create_reconciliation():
                     description=desc,
                     recorded_by=user,
                 ))
+            elif kind == "debtor":
+                debtor = Debtor.query.get(related_id)
+                if debtor:
+                    debtor.total_debt += amount
+                    db.session.add(DebtTransaction(
+                        debtor_id=debtor.id,
+                        amount=amount,
+                        outstanding_debt=amount,
+                        description=desc,
+                        issued_by=user,
+                        date=date,
+                        due_date=date + timedelta(days=5)
+                    ))
+            elif kind == "waiter":
+                waiter = Waiter.query.get(related_id)
+                if waiter:
+                    db.session.add(WaiterBill(
+                        waiter_id=waiter.id,
+                        total_amount=amount,
+                        description=desc,
+                        bill_date=date,
+                        is_settled=False
+                    ))
             else:
                 db.session.add(CashMovement(
                     date=date,
@@ -84,7 +106,6 @@ def create_reconciliation():
                     recorded_by=user,
                 ))
 
-
         db.session.commit()
         return jsonify({"message": "Reconciliation saved successfully"}), 201
 
@@ -92,6 +113,7 @@ def create_reconciliation():
         db.session.rollback()
         print("Reconciliation Error:", e)
         return jsonify({"error": str(e)}), 400
+
 
 
 @recon_bp.route("/summary", methods=["GET"])
@@ -140,3 +162,53 @@ def recon_history():
     # admin-only: return existing reconciliations
     items = Reconciliation.query.order_by(Reconciliation.date.desc(), Reconciliation.created_at.desc()).all()
     return jsonify([r.to_dict() for r in items]), 200
+
+@recon_bp.route("/waiter/create", methods=["POST"])
+@jwt_required()
+@role_required("admin")
+def create_waiter():
+    data = request.get_json()
+    name = data.get("name")
+    salary = float(data.get("daily_salary", 0))
+    waiter = Waiter(name=name, daily_salary=salary)
+    db.session.add(waiter)
+    db.session.commit()
+    return jsonify(waiter.to_dict()), 201
+
+@recon_bp.route("/waiter/<int:waiter_id>/status", methods=["PUT"])
+@jwt_required()
+@role_required("admin")
+def update_waiter_status(waiter_id):
+    data = request.get_json()
+    status = data.get("status")
+    waiter = Waiter.query.get_or_404(waiter_id)
+    waiter.status = status
+    db.session.commit()
+    return jsonify(waiter.to_dict()), 200
+
+
+@recon_bp.route("/debtor/create", methods=["POST"])
+@jwt_required()
+@role_required("admin")
+def create_debtor():
+    data = request.get_json()
+    name = data.get("name")
+    phone = data.get("phone")
+    debtor = Debtor(name=name, phone=phone)
+    db.session.add(debtor)
+    db.session.commit()
+    return jsonify(debtor.to_dict()), 201
+
+@recon_bp.route("/debtor/list", methods=["GET"])
+@jwt_required()
+@role_required("admin")
+def list_debtors():
+    debtors = Debtor.query.all()
+    return jsonify([d.to_dict() for d in debtors]), 200
+
+@recon_bp.route("/debtor/<int:debtor_id>", methods=["GET"])
+@jwt_required()
+@role_required("admin")
+def get_debtor(debtor_id):
+    debtor = Debtor.query.get_or_404(debtor_id)
+    return jsonify(debtor.to_dict()), 200

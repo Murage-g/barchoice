@@ -5,7 +5,16 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
-type Line = { kind: "expense" | "sale" | "other"; description?: string; amount: string };
+type LineKind = "expense" | "sale" | "other" | "debtor" | "waiter";
+type Line = {
+  kind: LineKind;
+  description?: string;
+  amount: string;
+  relatedId?: string | number | null;
+};
+
+type Debtor = { id: number; name: string };
+type Waiter = { id: number; name: string; status?: string; bills?: any[] };
 
 export default function ReconciliationPage() {
   const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
@@ -18,9 +27,14 @@ export default function ReconciliationPage() {
   const [lines, setLines] = useState<Line[]>([]);
   const [notes, setNotes] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [debtors, setDebtors] = useState<Debtor[]>([]);
+  const [waiters, setWaiters] = useState<Waiter[]>([]);
+  const [error, setError] = useState<string>("");
 
   useEffect(() => {
     fetchSummary();
+    fetchDebtors();
+    fetchWaiters();
   }, [date]);
 
   async function fetchSummary() {
@@ -33,8 +47,28 @@ export default function ReconciliationPage() {
     }
   }
 
+  async function fetchDebtors() {
+    try {
+      const res = await api.get("/api/recon/debtor/list");
+      setDebtors(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch debtors", err);
+      setDebtors([]);
+    }
+  }
+
+  async function fetchWaiters() {
+    try {
+      const res = await api.get("/api/recon/waiter/list");
+      setWaiters(res.data || []);
+    } catch (err) {
+      console.error("Failed to fetch waiters", err);
+      setWaiters([]);
+    }
+  }
+
   function addLine() {
-    setLines((s) => [...s, { kind: "other", description: "", amount: "0" }]);
+    setLines((s) => [...s, { kind: "other", description: "", amount: "0", relatedId: null }]);
   }
   function updateLine(idx: number, patch: Partial<Line>) {
     setLines((s) => s.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
@@ -45,13 +79,14 @@ export default function ReconciliationPage() {
 
   const mpesaTotal = Number(mpesa1 || 0) + Number(mpesa2 || 0) + Number(mpesa3 || 0);
   const linesTotal = lines.reduce((s, l) => s + Number(l.amount || 0), 0);
-  const expectedCash = salesTotal - linesTotal; // naive, adapt as you need
+  const expectedCash = salesTotal - linesTotal;
   const countedCash = Number(cashOnHand || 0) + mpesaTotal;
-  const difference = countedCash - salesTotal + linesTotal; // positive: surplus
+  const difference = countedCash - salesTotal + linesTotal;
 
   async function submitReconc() {
     if (!confirm("Save reconciliation?")) return;
     setSaving(true);
+    setError("");
     try {
       const payload = {
         date,
@@ -60,18 +95,30 @@ export default function ReconciliationPage() {
         mpesa3: Number(mpesa3 || 0),
         cash_on_hand: Number(cashOnHand || 0),
         notes,
-        lines: lines.map((l) => ({ kind: l.kind, description: l.description, amount: Number(l.amount || 0) })),
+        lines: lines.map((l) => ({
+          kind: l.kind,
+          description: l.description || "",
+          amount: Number(l.amount || 0),
+          relatedId: l.relatedId ?? null,
+        })),
       };
+
       const res = await api.post("/api/recon/create", payload);
-      alert("Saved");
-      // reset
+      // success
+      alert("✅ Reconciliation saved");
       setLines([]);
       setNotes("");
-      setMpesa1("0"); setMpesa2("0"); setMpesa3("0"); setCashOnHand("0");
+      setMpesa1("0");
+      setMpesa2("0");
+      setMpesa3("0");
+      setCashOnHand("0");
       fetchSummary();
-    } catch (err) {
-      alert("Failed to save");
-      console.error(err);
+    } catch (err: any) {
+      console.error("Failed to save reconciliation", err);
+      // axios-style error handling
+      const msg = err?.response?.data?.error || err?.response?.data?.message || err?.message || "Failed to save";
+      setError(String(msg));
+      alert("Failed to save reconciliation: " + msg);
     } finally {
       setSaving(false);
     }
@@ -84,7 +131,12 @@ export default function ReconciliationPage() {
           <div className="bg-white rounded-2xl p-4 shadow">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold text-gray-800">Reconciliation</h2>
-              <input type="date" value={date} onChange={(e)=>setDate(e.target.value)} className="border rounded px-2 py-1 text-sm"/>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="border rounded px-2 py-1 text-sm"
+              />
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
@@ -101,10 +153,30 @@ export default function ReconciliationPage() {
             <div className="mt-4">
               <h3 className="text-sm font-medium text-gray-700">Cash & Mpesa</h3>
               <div className="grid grid-cols-2 gap-2 mt-2">
-                <input className="border rounded p-2 text-sm" placeholder="Mpesa 1" value={mpesa1} onChange={(e)=>setMpesa1(e.target.value)} />
-                <input className="border rounded p-2 text-sm" placeholder="Mpesa 2" value={mpesa2} onChange={(e)=>setMpesa2(e.target.value)} />
-                <input className="border rounded p-2 text-sm" placeholder="Mpesa 3" value={mpesa3} onChange={(e)=>setMpesa3(e.target.value)} />
-                <input className="border rounded p-2 text-sm" placeholder="Cash on hand" value={cashOnHand} onChange={(e)=>setCashOnHand(e.target.value)} />
+                <input
+                  className="border rounded p-2 text-sm"
+                  placeholder="Mpesa 1"
+                  value={mpesa1}
+                  onChange={(e) => setMpesa1(e.target.value)}
+                />
+                <input
+                  className="border rounded p-2 text-sm"
+                  placeholder="Mpesa 2"
+                  value={mpesa2}
+                  onChange={(e) => setMpesa2(e.target.value)}
+                />
+                <input
+                  className="border rounded p-2 text-sm"
+                  placeholder="Mpesa 3"
+                  value={mpesa3}
+                  onChange={(e) => setMpesa3(e.target.value)}
+                />
+                <input
+                  className="border rounded p-2 text-sm"
+                  placeholder="Cash on hand"
+                  value={cashOnHand}
+                  onChange={(e) => setCashOnHand(e.target.value)}
+                />
               </div>
               <div className="text-xs text-gray-500 mt-2">Mpesa total: KSh {mpesaTotal.toFixed(2)}</div>
             </div>
@@ -113,40 +185,112 @@ export default function ReconciliationPage() {
               <h3 className="text-sm font-medium text-gray-700">Adjustments / Lines</h3>
               <div className="space-y-2 mt-2">
                 {lines.map((l, i) => (
-                  <div key={i} className="flex gap-2">
-                    <select value={l.kind} onChange={(e)=>updateLine(i, { kind: e.target.value as any })} className="w-1/3 border rounded px-2 py-1 text-sm">
+                  <div key={i} className="flex gap-2 items-center">
+                    <select
+                      value={l.kind}
+                      onChange={(e) => updateLine(i, { kind: e.target.value as LineKind, relatedId: null })}
+                      className="w-1/3 border rounded px-2 py-1 text-sm"
+                    >
                       <option value="expense">Expense</option>
                       <option value="sale">Sale</option>
+                      <option value="debtor">Debtor</option>
+                      <option value="waiter">Waiter</option>
                       <option value="other">Other</option>
                     </select>
-                    <input value={l.description} onChange={(e)=>updateLine(i, { description: e.target.value })} placeholder="Description" className="flex-1 border rounded px-2 py-1 text-sm"/>
-                    <input value={l.amount} onChange={(e)=>updateLine(i, { amount: e.target.value })} placeholder="Amount" className="w-28 border rounded px-2 py-1 text-sm"/>
-                    <button onClick={()=>removeLine(i)} className="bg-red-100 text-red-700 px-2 rounded text-sm">Del</button>
+
+                    {/* relatedId dropdown shown conditionally */}
+                    {l.kind === "debtor" && (
+                      <select
+                        value={l.relatedId ?? ""}
+                        onChange={(e) => updateLine(i, { relatedId: e.target.value ? Number(e.target.value) : null })}
+                        className="w-40 border rounded px-2 py-1 text-sm"
+                      >
+                        <option value="">Select debtor</option>
+                        {debtors.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+
+                    {l.kind === "waiter" && (
+                      <select
+                        value={l.relatedId ?? ""}
+                        onChange={(e) => updateLine(i, { relatedId: e.target.value ? Number(e.target.value) : null })}
+                        className="w-40 border rounded px-2 py-1 text-sm"
+                      >
+                        <option value="">Select waiter</option>
+                        {waiters.map((w) => (
+                          <option key={w.id} value={w.id}>
+                            {w.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+
+                    <input
+                      value={l.description}
+                      onChange={(e) => updateLine(i, { description: e.target.value })}
+                      placeholder="Description"
+                      className="flex-1 border rounded px-2 py-1 text-sm"
+                    />
+                    <input
+                      value={l.amount}
+                      onChange={(e) => updateLine(i, { amount: e.target.value })}
+                      placeholder="Amount"
+                      className="w-28 border rounded px-2 py-1 text-sm"
+                    />
+                    <button onClick={() => removeLine(i)} className="bg-red-100 text-red-700 px-2 rounded text-sm">
+                      Del
+                    </button>
                   </div>
                 ))}
-                <button onClick={addLine} className="mt-2 text-sm bg-gray-100 px-3 py-2 rounded">Add Line</button>
-                <div className="mt-3 text-sm text-gray-600">Lines total: KSh {linesTotal.toFixed(2)}</div>
+
+                <div className="flex gap-2">
+                  <button onClick={addLine} className="mt-2 text-sm bg-gray-100 px-3 py-2 rounded">
+                    Add Line
+                  </button>
+                  <div className="mt-3 text-sm text-gray-600">Lines total: KSh {linesTotal.toFixed(2)}</div>
+                </div>
               </div>
             </div>
 
             <div className="mt-4">
               <label className="text-sm text-gray-600">Notes</label>
-              <textarea value={notes} onChange={(e)=>setNotes(e.target.value)} className="w-full border rounded p-2 text-sm" rows={3} />
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full border rounded p-2 text-sm"
+                rows={3}
+              />
             </div>
 
             <div className="mt-4">
               <div className="flex justify-between items-center">
                 <div>
                   <div className="text-xs text-gray-500">Counted vs Sales</div>
-                  <div className="text-lg font-bold">{difference >= 0 ? <span className="text-green-700">Surplus KSh {difference.toFixed(2)}</span> : <span className="text-red-600">Shortfall KSh {Math.abs(difference).toFixed(2)}</span>}</div>
+                  <div className="text-lg font-bold">
+                    {difference >= 0 ? (
+                      <span className="text-green-700">Surplus KSh {difference.toFixed(2)}</span>
+                    ) : (
+                      <span className="text-red-600">Shortfall KSh {Math.abs(difference).toFixed(2)}</span>
+                    )}
+                  </div>
                 </div>
-                <button onClick={submitReconc} disabled={saving} className="bg-indigo-600 text-white px-4 py-2 rounded">
-                  {saving ? "Saving." : "Save Reconciliation"}
-                </button>
+                <div className="flex items-center gap-3">
+                  {error && <div className="text-sm text-red-600">{error}</div>}
+                  <button
+                    onClick={submitReconc}
+                    disabled={saving}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded disabled:opacity-60"
+                  >
+                    {saving ? "Saving..." : "Save Reconciliation"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-
         </div>
       </div>
     </ProtectedRoute>

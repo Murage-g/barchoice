@@ -5,6 +5,7 @@ class Waiter(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
     daily_salary = db.Column(db.Float, default=0.0)
+    status = db.Column(db.String(20), default="active") # active, fired, suspended
     bills = db.relationship('WaiterBill', backref='waiter', lazy=True)
     
     def to_dict(self):
@@ -12,6 +13,7 @@ class Waiter(db.Model):
             'id': self.id,
             'name': self.name,
             'daily_salary': self.daily_salary,
+            'status': self.status,
         }
 
 

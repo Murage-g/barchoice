@@ -97,7 +97,7 @@ def handle_options():
 
 # Ensure tables exist (works with Gunicorn + Render Free)
 with app.app_context():
-    db.create_all()
+    # db.create_all()
 
     # 🔥 SEED DEFAULT ADMIN USER IF NOT EXISTS 🔥
     from backend.models.user import User
