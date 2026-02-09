@@ -1,9 +1,11 @@
 services:
   - type: web
     name: barpos-backend
-    env: docker
+    env: python
     plan: free
-    dockerfilePath: ./Dockerfile
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: gunicorn backend.app:create_app
+    releaseCommand: flask --app backend.app:create_app db upgrade
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -14,19 +16,12 @@ services:
       - key: SECRET_KEY
         value: anothersecret
 
-  - type: worker 
-    name: barpos-migrations 
-    env: docker 
-    plan: free 
-    dockerfilePath: ./Dockerfile 
-    command: flask --app backend.app:create_app db upgrade 
-    autoDeploy: true
-
   - type: web
     name: barpos-frontend
-    env: docker
+    env: node
     plan: free
-    dockerfilePath: ./frontend/Dockerfile
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
     envVars:
       - key: NEXT_PUBLIC_API_URL
         value: https://barpos-backend-sur2.onrender.com
