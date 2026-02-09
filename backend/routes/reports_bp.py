@@ -49,52 +49,44 @@ def debug_token():
 @reports_bp.route("/profit_loss", methods=["GET","OPTIONS"])
 @jwt_required()
 @role_required("admin")
-def profit_loss_report():
-    if request.method == "OPTIONS":
-        return jsonify({}), 200  # <-- ALLOWS CORS preflight
+def profit_loss_report(): 
+    start_date, end_date = parse_dates()
+    print("✅ Route hit", start_date, end_date)
 
-    # Now enforce auth only for real GET requests
-    @jwt_required()
-    @role_required("admin")
+    query_sales = Sale.query.filter(
+        db.func.date(Sale.date) >= start_date,
+        db.func.date(Sale.date) <= end_date
+    )
 
-    def inner():
-        start_date, end_date = parse_dates()
-        print("✅ Route hit", start_date, end_date)
+    query_expenses = Expense.query.filter(
+        Expense.date >= start_date,
+        Expense.date <= end_date
+    )
 
-        query_sales = Sale.query.filter(
-            db.func.date(Sale.date) >= start_date,
-            db.func.date(Sale.date) <= end_date
-        )
+    total_sales = query_sales.with_entities(db.func.sum(Sale.total_price)).scalar() or 0
 
-        query_expenses = Expense.query.filter(
-            Expense.date >= start_date,
-            Expense.date <= end_date
-        )
+    total_cogs = query_sales.join(
+        Product, Product.id == Sale.product_id
+    ).with_entities(
+        db.func.sum(Sale.quantity * Product.cost_price)
+    ).scalar() or 0
 
-        total_sales = query_sales.with_entities(db.func.sum(Sale.total_price)).scalar() or 0
+    total_expenses = query_expenses.with_entities(db.func.sum(Expense.amount)).scalar() or 0
 
-        total_cogs = query_sales.join(
-            Product, Product.id == Sale.product_id
-        ).with_entities(
-            db.func.sum(Sale.quantity * Product.cost_price)
-        ).scalar() or 0
+    gross_profit = total_sales - total_cogs
+    net_profit = gross_profit - total_expenses  # apply taxes later if needed
 
-        total_expenses = query_expenses.with_entities(db.func.sum(Expense.amount)).scalar() or 0
-
-        gross_profit = total_sales - total_cogs
-        net_profit = gross_profit - total_expenses  # apply taxes later if needed
-
-        return jsonify({
-            "report_type": "Profit and Loss",
-            "period": {"start": str(start_date), "end": str(end_date)},
-            "sections": {
-                "sales": float(total_sales),
-                "cogs": float(total_cogs),
-                "gross_profit": float(gross_profit),
-                "expenses": float(total_expenses),
-                "net_profit": float(net_profit)
-            }
-        }), 200
+    return jsonify({
+        "report_type": "Profit and Loss",
+        "period": {"start": str(start_date), "end": str(end_date)},
+        "sections": {
+            "sales": float(total_sales),
+            "cogs": float(total_cogs),
+            "gross_profit": float(gross_profit),
+            "expenses": float(total_expenses),
+            "net_profit": float(net_profit)
+        }
+    }), 200
 
 @reports_bp.route("/cash_flow", methods=["GET", "OPTIONS"])
 @jwt_required()
