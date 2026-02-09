@@ -32,7 +32,7 @@ def parse_dates():
     return start_date, end_date
 
 
-@reports_bp.route("/debug_token", methods=["GET"])
+@reports_bp.route("/debug_token", methods=["GET", "OPTIONS"])
 @jwt_required()
 def debug_token():
     from flask_jwt_extended import get_jwt_identity, get_jwt
@@ -89,7 +89,7 @@ def profit_loss_report():
         }
     }), 200
 
-@reports_bp.route("/cash_flow", methods=["GET"])
+@reports_bp.route("/cash_flow", methods=["GET", "OPTIONS"])
 @jwt_required()
 @role_required("admin")
 def cash_flow_statement():
@@ -296,7 +296,7 @@ def cash_flow_statement():
     }), 200
 
 
-@reports_bp.route("/balance_sheet", methods=["GET"])
+@reports_bp.route("/balance_sheet", methods=["GET", "OPTIONS"])
 @jwt_required()
 @role_required("admin")
 def balance_sheet():
