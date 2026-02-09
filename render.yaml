@@ -1,11 +1,9 @@
 services:
   - type: web
     name: barpos-backend
-    env: python
+    env: docker
     plan: free
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: gunicorn backend.app:create_app
-    releaseCommand: flask --app backend.app:create_app db upgrade
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -18,10 +16,9 @@ services:
 
   - type: web
     name: barpos-frontend
-    env: node
+    env: docker
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: npm run start
+    dockerfilePath: ./frontend/Dockerfile
     envVars:
       - key: NEXT_PUBLIC_API_URL
         value: https://barpos-backend-sur2.onrender.com
