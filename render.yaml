@@ -19,8 +19,8 @@ services:
     env: docker 
     plan: free 
     dockerfilePath: ./Dockerfile 
-    startCommand: flask --app backend.app:create_app db upgrade 
-    autoDeploy: false
+    command: flask --app backend.app:create_app db upgrade 
+    autoDeploy: true
 
   - type: web
     name: barpos-frontend
