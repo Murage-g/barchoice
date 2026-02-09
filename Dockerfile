@@ -10,9 +10,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
 COPY backend/ ./backend
+RUN chmod +x backend/entrypoint.sh
+
+ENV FLASK_APP=backend.app
 
 # Expose Flask port
 EXPOSE 5000
 
 # Run Gunicorn with backend.app:app
-CMD flask db upgrade && gunicorn backend.app:app -b 0.0.0.0:5000
+CMD ["sh", "backend/entrypoint.sh"]
