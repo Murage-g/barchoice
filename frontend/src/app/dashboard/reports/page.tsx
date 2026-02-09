@@ -98,15 +98,15 @@ export default function ReportsPage() {
       const params = `?start_date=${start}&end_date=${end}`;
 
       const [pl, bs, cf] = await Promise.all([
-        axios.get(`/api/reports/profit_loss${params}`, {
+        api.get(`/reports/profit_loss${params}`, {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true,
         }),
-        axios.get(`/api/reports/balance_sheet`, {
+        api.get(`/reports/balance_sheet`, {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true,
         }),
-        axios.get(`/api/reports/cash_flow${params}`, {
+        api.get(`/reports/cash_flow${params}`, {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true,
         }),
