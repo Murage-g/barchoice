@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import api from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export default function RegisterPage() {
     setSuccess("");
 
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await api.post("/auth/register", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json", 
@@ -46,8 +47,7 @@ export default function RegisterPage() {
         body: JSON.stringify(formData),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.msg || "Registration failed");
+      const data = await res.data();
 
       setSuccess("✅ Registration successful!");
       setFormData({ username: "", email: "", password: "", role: "cashier" });
