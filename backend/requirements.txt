@@ -7,3 +7,4 @@ psycopg2-binary
 python-dotenv
 gunicorn==21.2.0
 flask-migrate
+alembic
