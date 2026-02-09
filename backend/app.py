@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request
 from flask_migrate import Migrate
 from .extensions import db, bcrypt, jwt, cors
 from .config import Config
@@ -88,6 +88,12 @@ def create_app():
 
 
 app = create_app()
+@app.before_request
+def handle_options():
+    if request.method == "OPTIONS":
+        # Return empty 200 OK with CORS headers
+        return {}, 200
+
 
 # Ensure tables exist (works with Gunicorn + Render Free)
 with app.app_context():

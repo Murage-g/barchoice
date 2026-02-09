@@ -38,21 +38,21 @@ export default function RegisterPage() {
     setSuccess("");
 
     try {
-      const res = await api.post("/auth/register", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json", 
-          "Authorization": `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await res.data();
+      const res = await api.post(
+        "/auth/register",
+        formData, // ✅ data goes here
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
 
       setSuccess("✅ Registration successful!");
       setFormData({ username: "", email: "", password: "", role: "cashier" });
     } catch (err: any) {
-      setError(err.message || "Something went wrong");
+      setError(err.response?.data?.msg || err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
