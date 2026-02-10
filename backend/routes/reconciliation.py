@@ -186,6 +186,13 @@ def update_waiter_status(waiter_id):
     db.session.commit()
     return jsonify(waiter.to_dict()), 200
 
+@recon_bp.route("/waiter/list", methods=["GET"])
+@jwt_required()
+@role_required("admin")
+def list_waiters():
+    waiters = Waiter.query.all()
+    return jsonify([w.to_dict(include_bills=True) for w in waiters]), 200
+
 
 @recon_bp.route("/debtor/create", methods=["POST"])
 @jwt_required()
