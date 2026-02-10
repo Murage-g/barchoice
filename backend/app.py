@@ -97,17 +97,32 @@ def handle_options():
 
 # Ensure tables exist (works with Gunicorn + Render Free)
 with app.app_context():
-    # db.create_all()
+    from .models import User
+    from .extensions import db, bcrypt
 
-    # 🔥 SEED DEFAULT ADMIN USER IF NOT EXISTS 🔥
-    from backend.models.user import User
+    # Check if the 'users' table exists
+    inspector = db.inspect(db.engine)
+    if "users" not in inspector.get_table_names():
+        print("⚠️ Tables not found. Creating all tables...")
+        db.create_all()
+    else:
+        print("ℹ️ Tables already exist, skipping creation.")
 
+    # Check if default admin exists
     admin_email = "admin@barpos.local"
-    try:
-        existing = User.query.filter_by(email=admin_email).first()
-    except Exception as e:
-        print("⚠️ Database not ready yet:", e)
-        existing = None
+    admin = User.query.filter_by(email=admin_email).first()
+    if not admin:
+        admin = User(
+            username="admin",
+            email=admin_email,
+            role="admin"
+        )
+        admin.password = bcrypt.generate_password_hash("admin123").decode('utf-8')
+        db.session.add(admin)
+        db.session.commit()
+        print(f"✅ Default admin created: {admin_email}")
+    else:
+        print(f"ℹ️ Admin already exists: {admin_email}")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
