@@ -34,7 +34,7 @@ def create_app():
                 "http://10.162.12.63:3000",
                 "http://127.0.0.1:3000",
                 "http://localhost:3000",
-                "https://barpos-frontend-sur2.onrender.com"
+                "https://barpos-frontend.onrender.com"
 
             ]
         }
@@ -87,20 +87,13 @@ def create_app():
     return app
 
 
-app = create_app()
-@app.before_request
-def handle_options():
-    if request.method == "OPTIONS":
-        # Return empty 200 OK with CORS headers
-        return {}, 200
-
-
-# Ensure tables exist (works with Gunicorn + Render Free)
-with app.app_context():
+# ---------------------
+# Admin seeding function
+# ---------------------
+def seed_admin():
+    """Create default admin user if not exists"""
     from .models import User
-    from .extensions import db, bcrypt
 
-    # Check if the 'users' table exists
     inspector = db.inspect(db.engine)
     if "users" not in inspector.get_table_names():
         print("⚠️ Tables not found. Creating all tables...")
@@ -108,21 +101,35 @@ with app.app_context():
     else:
         print("ℹ️ Tables already exist, skipping creation.")
 
-    # Check if default admin exists
     admin_email = "admin@barpos.local"
     admin = User.query.filter_by(email=admin_email).first()
     if not admin:
-        admin = User(
-            username="admin",
-            email=admin_email,
-            role="admin"
-        )
-        admin.password = bcrypt.generate_password_hash("admin123").decode('utf-8')
+        admin = User(username="admin", email=admin_email, role="admin")
+        admin.password = bcrypt.generate_password_hash("admin123").decode("utf-8")
         db.session.add(admin)
         db.session.commit()
         print(f"✅ Default admin created: {admin_email}")
     else:
         print(f"ℹ️ Admin already exists: {admin_email}")
 
+
+# ---------------------
+# App creation
+# ---------------------
+app = create_app()
+
+@app.before_request
+def handle_options():
+    if request.method == "OPTIONS":
+        return {}, 200
+
+
+# ---------------------
+# Run server (for local dev only)
+# ---------------------
 if __name__ == "__main__":
+    with app.app_context():
+        # Optional: create tables locally if needed
+        db.create_all()
+        seed_admin()
     app.run(host="0.0.0.0", port=5000, debug=True)

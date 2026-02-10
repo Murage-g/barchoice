@@ -1,5 +1,5 @@
 #!/bin/bash
-# entry.sh
+# entrypoint.sh
 
 # Exit immediately if a command fails
 set -e
