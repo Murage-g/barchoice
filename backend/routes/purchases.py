@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 from ..models import Product, Supplier, Purchase
+from ..models.purchase_undo import PurchaseUndoLog
 from ..utils.decorators import role_required
 from ..extensions import db
 from flask_cors import cross_origin
@@ -177,3 +178,74 @@ def purchase_report():
 
     total_spent = sum(item["total_cost"] for item in report)
     return jsonify({"purchases": report, "total_spent": total_spent}), 200
+
+@purchases_bp.route("/purchases/undo", methods=["POST"])
+@jwt_required()
+@role_required("admin")
+def undo_purchases():
+    data = request.get_json()
+    purchase_ids = data.get("purchase_ids", [])
+    reason = data.get("reason", "").strip()
+    user = get_jwt_identity()
+
+    if not purchase_ids:
+        return jsonify({"error": "No purchase IDs provided"}), 400
+
+    if not reason:
+        return jsonify({"error": "Reason for undo is required"}), 400
+
+    undone = []
+    errors = []
+
+    for pid in purchase_ids:
+        purchase = Purchase.query.get(pid)
+
+        if not purchase:
+            errors.append(f"Purchase {pid} not found")
+            continue
+
+        product = Product.query.get(purchase.product_id)
+
+        if not product:
+            errors.append(f"Product for purchase {pid} not found")
+            continue
+
+        # 🔴 SAFETY CHECK: prevent negative stock
+        if product.stock - purchase.quantity < 0:
+            errors.append(
+                f"Cannot undo purchase {pid}: would make stock negative for {product.name}"
+            )
+            continue
+
+        try:
+            # Reduce stock
+            product.stock -= purchase.quantity
+
+            # Log the undo
+            db.session.add(
+                PurchaseUndoLog(
+                    purchase_id=purchase.id,
+                    product_id=product.id,
+                    quantity_reversed=purchase.quantity,
+                    total_cost=purchase.total_cost,
+                    reason=reason,
+                    undone_by=user,
+                )
+            )
+
+            # Delete the purchase
+            db.session.delete(purchase)
+
+            undone.append(pid)
+
+        except Exception as e:
+            db.session.rollback()
+            errors.append(f"Failed to undo {pid}: {str(e)}")
+            continue
+
+    db.session.commit()
+
+    return jsonify({
+        "undone": undone,
+        "errors": errors
+    }), 200

@@ -170,9 +170,11 @@ def create_waiter():
     data = request.get_json()
     name = data.get("name")
     salary = float(data.get("daily_salary", 0))
+
     waiter = Waiter(name=name, daily_salary=salary)
     db.session.add(waiter)
     db.session.commit()
+
     return jsonify(waiter.to_dict()), 201
 
 @recon_bp.route("/waiter/<int:waiter_id>/status", methods=["PUT"])
@@ -190,8 +192,76 @@ def update_waiter_status(waiter_id):
 @jwt_required()
 @role_required("admin")
 def list_waiters():
-    waiters = Waiter.query.all()
-    return jsonify([w.to_dict(include_bills=True) for w in waiters]), 200
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 10, type=int)
+    status = request.args.get("status")
+    search = request.args.get("search")
+    sort = request.args.get("sort")   # outstanding_desc / outstanding_asc
+    export = request.args.get("export")  # csv
+
+    query = Waiter.query
+
+    # FILTER BY STATUS
+    if status:
+        query = query.filter_by(status=status)
+
+    # SEARCH BY NAME
+    if search:
+        query = query.filter(Waiter.name.ilike(f"%{search}%"))
+
+    # PAGINATE FIRST (SQLAlchemy requires this before sorting in-memory)
+    paginated = query.order_by(Waiter.id.asc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    waiters = [
+        w.to_dict(include_bills=True, include_outstanding=True)
+        for w in paginated.items
+    ]
+
+    # SORT BY OUTSTANDING (in-memory)
+    if sort == "outstanding_desc":
+        waiters = sorted(waiters, key=lambda w: w["total_outstanding"], reverse=True)
+    elif sort == "outstanding_asc":
+        waiters = sorted(waiters, key=lambda w: w["total_outstanding"])
+
+    # EXPORT TO CSV
+    if export == "csv":
+        import csv
+        from flask import Response
+        from io import StringIO
+
+        output = StringIO()
+        writer = csv.writer(output)
+
+        writer.writerow(["id", "name", "status", "daily_salary", "total_outstanding"])
+
+        for w in waiters:
+            writer.writerow([
+                w["id"],
+                w["name"],
+                w["status"],
+                w["daily_salary"],
+                w["total_outstanding"],
+            ])
+
+        output.seek(0)
+        return Response(
+            output,
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=waiters.csv"}
+        )
+
+    return jsonify({
+        "items": waiters,
+        "page": paginated.page,
+        "per_page": paginated.per_page,
+        "total": paginated.total,
+        "pages": paginated.pages,
+        "has_next": paginated.has_next,
+        "has_prev": paginated.has_prev,
+    }), 200
+
 
 
 @recon_bp.route("/debtor/create", methods=["POST"])
@@ -219,3 +289,17 @@ def list_debtors():
 def get_debtor(debtor_id):
     debtor = Debtor.query.get_or_404(debtor_id)
     return jsonify(debtor.to_dict()), 200
+
+@recon_bp.route("/waiter/bill/<int:bill_id>/settle", methods=["PUT"])
+@jwt_required()
+@role_required("admin")
+def settle_waiter_bill(bill_id):
+    bill = WaiterBill.query.get_or_404(bill_id)
+
+    bill.is_settled = True
+    bill.settled_date = datetime.utcnow().date()
+
+    db.session.commit()
+
+    return jsonify(bill.to_dict()), 200
+
