@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Loader2, DollarSign, CheckCircle2 } from "lucide-react";
 import api from "@/lib/api";
 import ConversionSection from "@/components/ConversionSection";
+import AdminDailyCloseAdjustment from "@/components/SalesUpdate";
 
 interface Product {
   id: number;
@@ -18,6 +19,9 @@ export default function SalesPage() {
   const [totalSales, setTotalSales] = useState(0);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [selectedDailyCloseId, setSelectedDailyCloseId] = useState<number | null>(null);
+  const [selectedClosingDate, setSelectedClosingDate] = useState<string | null>(null);
+
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -66,7 +70,16 @@ export default function SalesPage() {
       }));
       const res = await api.post("/api/daily_close", { items });
       alert(res.data.message);
+
+      // Set the newly created daily close for adjustments
+      const newDailyCloseId = res.data.daily_close_id; // your backend should return this
+      const today = new Date().toISOString().slice(0, 10);
+
+      setSelectedDailyCloseId(newDailyCloseId);
+      setSelectedClosingDate(today);
+
       fetchProducts();
+
     } catch (err) {
       alert("Error processing daily close");
     } finally {
@@ -215,6 +228,15 @@ export default function SalesPage() {
       <div>
         {/* Conversion section */}
       <ConversionSection onStockUpdate={handleStockUpdate} />
+      </div>
+      <div>
+        {/* Admin adjustments */}
+        {selectedDailyCloseId && selectedClosingDate && (
+        <AdminDailyCloseAdjustment
+          dailyCloseId={selectedDailyCloseId}
+          closingStockDate={selectedClosingDate}
+        />
+      )}
       </div>
     </div>
   );
