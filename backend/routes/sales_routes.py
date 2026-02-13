@@ -261,13 +261,22 @@ def daily_close():
         db.session.add_all(sales_to_post)
         db.session.commit()
 
+        # Fetch all DailyClose IDs just created
+        daily_close_ids = [
+            dc.id for dc in DailyClose.query.filter(
+                DailyClose.processed_by == processed_by,
+                DailyClose.opening_stock - DailyClose.closing_stock > 0
+            ).order_by(DailyClose.id.desc()).limit(len(items)).all()
+        ]
+
         return jsonify({
             "message": "Daily close processed successfully",
+            "daily_close_ids": daily_close_ids,   # <-- return these
             "total_revenue": round(total_revenue, 2),
             "total_profit": round(total_profit, 2),
             "total_sales_records": len(sales_to_post),
         }), 200
-
+    
     except ValueError as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400

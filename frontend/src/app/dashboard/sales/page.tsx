@@ -72,7 +72,7 @@ export default function SalesPage() {
       alert(res.data.message);
 
       // Set the newly created daily close for adjustments
-      const newDailyCloseId = res.data.daily_close_id; // your backend should return this
+      const newDailyCloseId = res.data.daily_close_ids[0]; // your backend should return this
       const today = new Date().toISOString().slice(0, 10);
 
       setSelectedDailyCloseId(newDailyCloseId);
