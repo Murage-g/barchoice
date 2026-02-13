@@ -60,7 +60,7 @@ export default function ReconciliationPage() {
   async function fetchWaiters() {
     try {
       const res = await api.get("/api/recon/waiter/list");
-      setWaiters(res.data || []);
+      setWaiters(Array.isArray(res.data.items) ? res.data.items : []);
     } catch (err) {
       console.error("Failed to fetch waiters", err);
       setWaiters([]);

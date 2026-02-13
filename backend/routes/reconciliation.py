@@ -1,11 +1,13 @@
 # backend/routes/recon_routes.py
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from psycopg2 import IntegrityError
 from ..utils.decorators import role_required
 from ..extensions import db
 from ..models.reconciliation import Reconciliation, ReconciliationLine
 from ..models import DailyClose, Product  # adjust import path if your models are elsewhere
 from ..models import Debtor, DebtTransaction, Waiter, WaiterBill
+from ..models.debtors import DebtPayment
 from ..models.cashmovements import CashMovement
 from datetime import datetime, date, timedelta
 from ..utils.expense_helpers import record_expense
@@ -262,25 +264,35 @@ def list_waiters():
         "has_prev": paginated.has_prev,
     }), 200
 
-
-
 @recon_bp.route("/debtor/create", methods=["POST"])
 @jwt_required()
 @role_required("admin")
 def create_debtor():
-    data = request.get_json()
+    data = request.get_json() or {}
+
     name = data.get("name")
     phone = data.get("phone")
-    debtor = Debtor(name=name, phone=phone)
-    db.session.add(debtor)
-    db.session.commit()
+
+    if not name:
+        return jsonify({"error": "Name is required"}), 400
+
+    debtor = Debtor(name=name.strip(), phone=phone)
+
+    try:
+        db.session.add(debtor)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"error": "Debtor already exists"}), 400
+
     return jsonify(debtor.to_dict()), 201
+
 
 @recon_bp.route("/debtor/list", methods=["GET"])
 @jwt_required()
 @role_required("admin")
 def list_debtors():
-    debtors = Debtor.query.all()
+    debtors = Debtor.query.order_by(Debtor.name.asc()).all()
     return jsonify([d.to_dict() for d in debtors]), 200
 
 @recon_bp.route("/debtor/<int:debtor_id>", methods=["GET"])
@@ -289,6 +301,53 @@ def list_debtors():
 def get_debtor(debtor_id):
     debtor = Debtor.query.get_or_404(debtor_id)
     return jsonify(debtor.to_dict()), 200
+
+@recon_bp.route("/debtor/transaction/<int:transaction_id>/pay", methods=["POST"])
+@jwt_required()
+@role_required("admin")
+def create_payment(transaction_id):
+
+    data = request.get_json() or {}
+
+    try:
+        amount = float(data.get("amount", 0))
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid amount format"}), 400
+
+    transaction = DebtTransaction.query.get_or_404(transaction_id)
+
+    if amount <= 0:
+        return jsonify({"error": "Amount must be greater than zero"}), 400
+
+    if amount > transaction.outstanding_amount:
+        return jsonify({"error": "Amount exceeds outstanding debt"}), 400
+
+    payment = DebtPayment(
+        transaction_id=transaction.id,
+        amount=amount,
+        received_by=get_jwt_identity()
+    )
+
+    db.session.add(payment)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Payment recorded",
+        "transaction": transaction.to_dict(),
+        "debtor_total_debt": transaction.debtor.total_debt
+    }), 201
+
+
+@recon_bp.route("/debtor/<int:debtor_id>/transactions", methods=["GET"])
+@jwt_required()
+@role_required("admin")
+def debtor_transactions(debtor_id):
+    transactions = DebtTransaction.query.filter_by(
+        debtor_id=debtor_id
+    ).order_by(DebtTransaction.date.desc()).all()
+
+    return jsonify([t.to_dict() for t in transactions]), 200
+
 
 @recon_bp.route("/waiter/bill/<int:bill_id>/settle", methods=["PUT"])
 @jwt_required()
