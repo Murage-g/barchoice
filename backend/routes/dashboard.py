@@ -23,7 +23,8 @@ def admin_dashboard():
     low_stock = Product.query.filter(Product.stock < 10).order_by(Product.stock.asc()).limit(10).all()
 
     # Top debtors
-    top_debtors = Debtor.query.order_by(Debtor.total_debt.desc()).limit(10).all()
+    top_debtors = sorted(Debtor.query.all(), key=lambda d: d.total_debt, reverse=True)[:10]
+
 
     return jsonify({
         "today_revenue": round(today_revenue, 2),
