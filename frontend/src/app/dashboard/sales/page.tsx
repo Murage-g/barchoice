@@ -19,7 +19,7 @@ export default function SalesPage() {
   const [totalSales, setTotalSales] = useState(0);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [selectedDailyCloseId, setSelectedDailyCloseId] = useState<number | null>(null);
+  const [selectedDailyCloseIds, setSelectedDailyCloseIds] = useState<number[]>([]);
   const [selectedClosingDate, setSelectedClosingDate] = useState<string | null>(null);
 
 
@@ -41,6 +41,25 @@ export default function SalesPage() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  const fetchTodayClose = async () => {
+    try {
+      const res = await api.get("/api/daily_close/today");
+
+      if (res.data.exists) {
+        setSelectedDailyCloseIds(res.data.daily_close_ids);
+        setSelectedClosingDate(res.data.date);
+      }
+    } catch (err) {
+      console.error("Failed to fetch today's close");
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+    fetchTodayClose();
+  }, []);
+
 
   const calculateSales = () => {
     const total = products.reduce((sum, p) => {
@@ -72,10 +91,11 @@ export default function SalesPage() {
       alert(res.data.message);
 
       // Set the newly created daily close for adjustments
-      const newDailyCloseId = res.data.daily_close_ids[0]; // your backend should return this
+      const newDailyCloseIds = res.data.daily_close_ids || [];
+      setSelectedDailyCloseIds(newDailyCloseIds);
+      // your backend should return this
       const today = new Date().toISOString().slice(0, 10);
 
-      setSelectedDailyCloseId(newDailyCloseId);
       setSelectedClosingDate(today);
 
       fetchProducts();
@@ -231,9 +251,9 @@ export default function SalesPage() {
       </div>
       <div>
         {/* Admin adjustments */}
-        {selectedDailyCloseId && selectedClosingDate && (
+        {selectedDailyCloseIds.length > 0 && selectedClosingDate && (
         <AdminDailyCloseAdjustment
-          dailyCloseId={selectedDailyCloseId}
+          dailyCloseIds={selectedDailyCloseIds}
           closingStockDate={selectedClosingDate}
         />
       )}
