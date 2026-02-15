@@ -11,12 +11,13 @@ dashboard_bp = Blueprint("dashboard", __name__)
 @jwt_required()
 @role_required("admin")
 def admin_dashboard():
+    from sqlalchemy import func
     today = datetime.utcnow().date()
 
-    # Today’s summary
-    closes = DailyClose.query.filter_by(date=today).all()
-    today_revenue = sum(c.revenue for c in closes)
-    today_profit = sum(c.profit for c in closes)
+    # Today's summary
+    closes = DailyClose.query.filter(func.date(DailyClose.date) == today).all()
+    today_revenue = sum((c.revenue or 0) for c in closes)
+    today_profit = sum((c.profit or 0) for c in closes)
 
     # Stock alerts
     low_stock = Product.query.filter(Product.stock < 10).order_by(Product.stock.asc()).limit(10).all()
@@ -28,8 +29,8 @@ def admin_dashboard():
         "today_revenue": round(today_revenue, 2),
         "today_profit": round(today_profit, 2),
         "low_stock_count": len(low_stock),
-        "low_stock": [p.to_dict() for p in low_stock],
-        "top_debtors": [d.to_dict() for d in top_debtors],
+        "low_stock": [{"id": p.id, "name": p.name, "stock": p.stock} for p in low_stock],
+        "top_debtors": [{"id": d.id, "name": d.name, "total_debt": d.total_debt} for d in top_debtors],
     }), 200
 
 
