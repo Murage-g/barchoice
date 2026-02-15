@@ -1,12 +1,13 @@
 # backend/routes/sales.py
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from backend.utils.decorators import role_required
 from ..models import Product, Sale, DailyClose
 from ..models.product import DailyCloseAdjustment
 from ..extensions import db
+from sqlalchemy import func
 
 sales_bp = Blueprint("sales", __name__)
 
@@ -269,4 +270,45 @@ def daily_close_summary(date):
         "total_profit": round(total_profit, 2),
         "total_units_sold": total_units,
         "products": products
+    }), 200
+
+@sales_bp.route("/daily_close/today", methods=["GET"])
+def get_today_daily_close():
+    today = date.today()
+
+    closes = DailyClose.query.filter(
+        func.date(DailyClose.created_at) == today,
+        DailyClose.units_sold > 0  # only products sold
+    ).all()
+
+    if not closes:
+        return jsonify({"exists": False}), 200
+
+    result = []
+    total_revenue = 0
+    total_profit = 0
+
+    for dc in closes:
+        product = Product.query.get(dc.product_id)
+
+        result.append({
+            "id": dc.id,
+            "product_name": product.name,
+            "opening_stock": dc.opening_stock,
+            "closing_stock": dc.closing_stock,
+            "units_sold": dc.units_sold,
+            "revenue": dc.revenue,
+            "profit": dc.profit,
+            "created_at": dc.created_at.isoformat()
+        })
+
+        total_revenue += dc.revenue
+        total_profit += dc.profit
+
+    return jsonify({
+        "exists": True,
+        "date": today.isoformat(),
+        "total_revenue": round(total_revenue, 2),
+        "total_profit": round(total_profit, 2),
+        "closes": result
     }), 200

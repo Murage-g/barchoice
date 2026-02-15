@@ -1,6 +1,5 @@
 "use client";
 
-
 import React, { useEffect, useState } from "react";
 import api from "@/lib/api";
 
@@ -17,18 +16,25 @@ interface DailyCloseAdjustment {
 }
 
 interface Props {
-  dailyCloseIds: number[];
+  closes: {
+    id: number;
+    product_name: string;
+    opening_stock: number;
+    closing_stock: number;
+    units_sold: number;
+    revenue: number;
+    profit: number;
+  }[];
   closingStockDate: string;
 }
 
 const AdminDailyCloseAdjustments: React.FC<Props> = ({
-  dailyCloseIds,
+  closes,
   closingStockDate,
 }) => {
   const [adjustments, setAdjustments] = useState<
     Record<number, DailyCloseAdjustment[]>
   >({});
-
   const [newClosing, setNewClosing] = useState<Record<number, string>>({});
   const [reason, setReason] = useState<Record<number, string>>({});
   const [error, setError] = useState("");
@@ -40,24 +46,13 @@ const AdminDailyCloseAdjustments: React.FC<Props> = ({
   };
 
   const fetchAdjustments = async (dcId: number) => {
-    const res = await fetch(`/api/daily_close/${dcId}/adjustments`);
-    const data = await res.json();
-    setAdjustments((prev) => ({ ...prev, [dcId]: data }));
+    const res = await api.get(`/api/daily_close/${dcId}/adjustments`);
+    setAdjustments((prev) => ({ ...prev, [dcId]: res.data }));
   };
 
   useEffect(() => {
-    dailyCloseIds.forEach((id) => fetchAdjustments(id));
-  }, [dailyCloseIds]);
-
-  const printReport = async () => {
-    for (const id of dailyCloseIds) {
-      const res = await api.get(`/api/daily_close/${id}/report`);
-      console.log(res.data);
-    }
-
-    window.print();
-  };
-
+    closes.forEach((c) => fetchAdjustments(c.id));
+  }, [closes]);
 
   const submitAdjustment = async (dcId: number) => {
     if (!newClosing[dcId] || !reason[dcId]) {
@@ -65,71 +60,92 @@ const AdminDailyCloseAdjustments: React.FC<Props> = ({
       return;
     }
 
-    const res = await fetch(`/api/daily_close/${dcId}/adjust`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      await api.post(`/api/daily_close/${dcId}/adjust`, {
         new_closing_stock: parseInt(newClosing[dcId]),
         reason: reason[dcId],
-      }),
-    });
+      });
 
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error);
-      return;
+      fetchAdjustments(dcId);
+      setNewClosing({ ...newClosing, [dcId]: "" });
+      setReason({ ...reason, [dcId]: "" });
+      setError("");
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Adjustment failed");
     }
+  };
 
-    fetchAdjustments(dcId);
-    setNewClosing({ ...newClosing, [dcId]: "" });
-    setReason({ ...reason, [dcId]: "" });
+  const printReport = () => {
+    window.print();
   };
 
   return (
-    <div className="mt-8 border-t pt-6">
-      <h2 className="text-xl font-bold mb-4">Daily Close Adjustments</h2>
+    <div className="mt-10 border-t pt-8">
+      <h2 className="text-2xl font-bold mb-6 text-indigo-700">
+        Daily Close Summary & Adjustments
+      </h2>
 
-      {dailyCloseIds.map((dcId) => (
-        <div key={dcId} className="mb-6 border rounded p-4">
-          <h4 className="font-semibold mb-2">Daily Close ID: {dcId}</h4>
+      {closes.map((close) => (
+        <div key={close.id} className="mb-10 bg-white shadow rounded-xl p-6">
+          {/* PRODUCT SUMMARY */}
+          <div className="mb-4">
+            <h3 className="text-lg font-bold text-gray-800">
+              {close.product_name}
+            </h3>
+            <div className="grid grid-cols-3 gap-4 text-sm mt-2">
+              <div>Opening: {close.opening_stock}</div>
+              <div>Closing: {close.closing_stock}</div>
+              <div>Sold: {close.units_sold}</div>
+              <div className="text-indigo-700 font-semibold">
+                Revenue: KSh {close.revenue.toFixed(2)}
+              </div>
+              <div className="text-green-700 font-semibold">
+                Profit: KSh {close.profit.toFixed(2)}
+              </div>
+            </div>
+          </div>
 
           {!isLocked() && (
-            <div className="flex gap-2 mb-3">
+            <div className="flex gap-3 mb-4">
               <input
                 type="number"
                 placeholder="New Closing"
-                value={newClosing[dcId] || ""}
+                value={newClosing[close.id] || ""}
                 onChange={(e) =>
                   setNewClosing({
                     ...newClosing,
-                    [dcId]: e.target.value,
+                    [close.id]: e.target.value,
                   })
                 }
-                className="border p-2"
+                className="border rounded p-2"
               />
               <input
                 type="text"
                 placeholder="Reason"
-                value={reason[dcId] || ""}
+                value={reason[close.id] || ""}
                 onChange={(e) =>
                   setReason({
                     ...reason,
-                    [dcId]: e.target.value,
+                    [close.id]: e.target.value,
                   })
                 }
-                className="border p-2"
+                className="border rounded p-2"
               />
               <button
-                onClick={() => submitAdjustment(dcId)}
-                className="bg-blue-600 text-white px-4 py-2"
+                onClick={() => submitAdjustment(close.id)}
+                className="bg-indigo-600 text-white px-4 py-2 rounded"
               >
                 Adjust
               </button>
             </div>
           )}
 
-          <table className="w-full border text-sm">
-            <thead>
+          {error && (
+            <div className="text-red-600 text-sm mb-3">{error}</div>
+          )}
+
+          <table className="w-full text-sm border">
+            <thead className="bg-gray-100">
               <tr>
                 <th>Date</th>
                 <th>Prev</th>
@@ -142,8 +158,8 @@ const AdminDailyCloseAdjustments: React.FC<Props> = ({
               </tr>
             </thead>
             <tbody>
-              {(adjustments[dcId] || []).map((a) => (
-                <tr key={a.id}>
+              {(adjustments[close.id] || []).map((a) => (
+                <tr key={a.id} className="border-t">
                   <td>{new Date(a.created_at).toLocaleString()}</td>
                   <td>{a.previous_closing_stock}</td>
                   <td>{a.new_closing_stock}</td>
@@ -159,11 +175,10 @@ const AdminDailyCloseAdjustments: React.FC<Props> = ({
 
           <button
             onClick={printReport}
-            className="bg-blue-600 text-white px-4 py-2 rounded mt-4"
+            className="mt-4 bg-gray-800 text-white px-4 py-2 rounded"
           >
-            Print End of Day Report
+            Print Report
           </button>
-
         </div>
       ))}
     </div>
