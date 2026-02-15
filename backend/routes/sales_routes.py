@@ -273,12 +273,15 @@ def daily_close_summary(date):
     }), 200
 
 @sales_bp.route("/daily_close/today", methods=["GET"])
+@jwt_required()
+@role_required("admin", "cashier")
 def get_today_daily_close():
-    today = date.today()
+
+    today = datetime.utcnow().date()
 
     closes = DailyClose.query.filter(
-        func.date(DailyClose.created_at) == today,
-        DailyClose.units_sold > 0  # only products sold
+        DailyClose.date == today,
+        DailyClose.units_sold > 0
     ).all()
 
     if not closes:
@@ -289,17 +292,14 @@ def get_today_daily_close():
     total_profit = 0
 
     for dc in closes:
-        product = Product.query.get(dc.product_id)
-
         result.append({
             "id": dc.id,
-            "product_name": product.name,
+            "product_name": dc.product.name,
             "opening_stock": dc.opening_stock,
             "closing_stock": dc.closing_stock,
             "units_sold": dc.units_sold,
             "revenue": dc.revenue,
             "profit": dc.profit,
-            "created_at": dc.created_at.isoformat()
         })
 
         total_revenue += dc.revenue
@@ -307,7 +307,7 @@ def get_today_daily_close():
 
     return jsonify({
         "exists": True,
-        "date": today.isoformat(),
+        "date": str(today),
         "total_revenue": round(total_revenue, 2),
         "total_profit": round(total_profit, 2),
         "closes": result
