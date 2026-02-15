@@ -7,12 +7,12 @@ from backend.utils.decorators import role_required
 from ..models import Product, Sale, DailyClose
 from ..models.product import DailyCloseAdjustment
 from ..extensions import db
-from sqlalchemy import func
 
 sales_bp = Blueprint("sales", __name__)
 
 def is_locked(daily_close: DailyClose):
     return datetime.utcnow().date() > daily_close.date + timedelta(days=3)
+
 
 @sales_bp.route("/sell", methods=["POST"])
 @jwt_required()
@@ -61,6 +61,7 @@ def sell_product():
         "sale": sale.to_dict()
     }), 201
 
+
 @sales_bp.route("/daily_close", methods=["POST"])
 @jwt_required()
 @role_required("admin", "cashier")
@@ -81,6 +82,14 @@ def daily_close():
             product = Product.query.get(item.get("product_id"))
             if not product:
                 raise ValueError(f"Product ID {item.get('product_id')} not found")
+
+            # Check duplicate daily close
+            existing = DailyClose.query.filter_by(
+                product_id=product.id,
+                date=datetime.utcnow().date()
+            ).first()
+            if existing:
+                raise ValueError(f"{product.name} already closed today")
 
             closing_stock = int(item.get("closing_stock"))
             opening_stock = product.stock
@@ -130,11 +139,11 @@ def daily_close():
         db.session.rollback()
         return jsonify({"error": "Failed to process daily close"}), 500
 
+
 @sales_bp.route("/daily_close/<int:dc_id>/adjust", methods=["POST"])
 @jwt_required()
 @role_required("admin")
 def adjust_closing_stock(dc_id):
-
     data = request.get_json() or {}
     reason = data.get("reason")
     new_closing_stock = data.get("new_closing_stock")
@@ -162,7 +171,8 @@ def adjust_closing_stock(dc_id):
     revenue_delta = quantity_delta * product.unit_price
     profit_delta = quantity_delta * (product.unit_price - product.cost_price)
 
-    product.stock += previous_closing - new_closing_stock
+    # Correct stock adjustment
+    product.stock -= quantity_delta
     daily_close.closing_stock = new_closing_stock
     daily_close.units_sold += quantity_delta
     daily_close.revenue += revenue_delta
@@ -187,11 +197,11 @@ def adjust_closing_stock(dc_id):
         "adjustment": adjustment.to_dict()
     }), 200
 
+
 @sales_bp.route("/daily_close/report/<string:date>", methods=["GET"])
 @jwt_required()
 @role_required("admin", "cashier")
 def daily_close_report(date):
-
     try:
         query_date = datetime.strptime(date, "%Y-%m-%d").date()
     except ValueError:
@@ -230,11 +240,11 @@ def daily_close_report(date):
 
     return jsonify(report_data), 200
 
+
 @sales_bp.route("/daily_close/summary/<string:date>", methods=["GET"])
 @jwt_required()
 @role_required("admin", "cashier")
 def daily_close_summary(date):
-
     try:
         query_date = datetime.strptime(date, "%Y-%m-%d").date()
     except ValueError:
@@ -272,11 +282,11 @@ def daily_close_summary(date):
         "products": products
     }), 200
 
+
 @sales_bp.route("/daily_close/today", methods=["GET"])
 @jwt_required()
 @role_required("admin", "cashier")
 def get_today_daily_close():
-
     today = datetime.utcnow().date()
 
     closes = DailyClose.query.filter(
@@ -311,4 +321,34 @@ def get_today_daily_close():
         "total_revenue": round(total_revenue, 2),
         "total_profit": round(total_profit, 2),
         "closes": result
+    }), 200
+
+
+@sales_bp.route("/daily_close/<int:daily_close_id>/adjustments", methods=["GET"])
+@jwt_required()
+@role_required("admin")
+def get_daily_close_adjustments(daily_close_id):
+    daily_close = DailyClose.query.get(daily_close_id)
+
+    if not daily_close:
+        return jsonify({"error": "Daily close not found"}), 404
+
+    adjustments = DailyCloseAdjustment.query.filter_by(
+        daily_close_id=daily_close_id
+    ).order_by(DailyCloseAdjustment.created_at.desc()).all()
+
+    result = []
+    for adj in adjustments:
+        result.append({
+            "id": adj.id,
+            "reason": adj.reason,
+            "quantity_delta": adj.quantity_delta,
+            "revenue_delta": adj.revenue_delta,
+            "profit_delta": adj.profit_delta,
+            "created_at": adj.created_at.isoformat()
+        })
+
+    return jsonify({
+        "daily_close_id": daily_close_id,
+        "adjustments": result
     }), 200
