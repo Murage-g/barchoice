@@ -47,7 +47,15 @@ const AdminDailyCloseAdjustments: React.FC<Props> = ({
 
   const fetchAdjustments = async (dcId: number) => {
     const res = await api.get(`/api/daily_close/${dcId}/adjustments`);
-    setAdjustments((prev) => ({ ...prev, [dcId]: res.data }));
+
+    const data = Array.isArray(res.data)
+      ? res.data
+      : res.data.adjustments || [];
+
+    setAdjustments((prev) => ({
+      ...prev,
+      [dcId]: data,
+    }));
   };
 
   useEffect(() => {
