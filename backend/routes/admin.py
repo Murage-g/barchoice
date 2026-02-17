@@ -5,7 +5,7 @@ from ..models.user import User
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from ..utils.decorators import role_required
 
-admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")
+admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 # ------------------------------
 # Get all users
