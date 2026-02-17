@@ -70,8 +70,10 @@ export default function SalesPage() {
 
   const submitDailyClose = async () => {
     const invalid = products.some((p) => {
-      const sold = p.stock - (closing[p.id] ?? 0);
-      return sold < 0;
+    const closingStock = Number(closing[p.id] ?? p.stock);
+    const sold = p.stock - closingStock;
+    return sold < 0 || isNaN(closingStock);
+
     });
 
     if (invalid) {
@@ -84,10 +86,10 @@ export default function SalesPage() {
     setProcessing(true);
 
     try {
-      const items = Object.entries(closing).map(([id, val]) => ({
-        product_id: parseInt(id),
-        closing_stock: Number(val),
-      }));
+      const items = products.map((p) => ({
+      product_id: p.id,
+      closing_stock: Number(closing[p.id] ?? p.stock),
+    }));
 
       await api.post("/api/daily_close", { items });
 
