@@ -1,78 +1,70 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 
+interface User {
+  id: number;
+  username: string;
+  email?: string;
+  role: string;
+}
+
 export default function ManageUsers() {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("cashier");
+  const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState<string | null>(null);
-  const [email, setEmail] = useState("");
-
 
   // -------------------------
-  // Load Token (client-side only)
+  // Load Users
   // -------------------------
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const t = localStorage.getItem("token");
-      setToken(t);
-    }
-  }, []);
-
-  // -------------------------
-  // Load Users (when token ready)
-  // -------------------------
-  useEffect(() => {
-    if (!token) return;
-
     const fetchUsers = async () => {
       try {
-        const res = await api.get("/admin/users", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        setUsers(Array.isArray(data) ? data : []);
-      } catch (err) {
+        const res = await api.get("/admin/users");
+        setUsers(Array.isArray(res.data) ? res.data : []);
+      } catch (err: any) {
         console.error("Error loading users:", err);
+        setMessage("❌ Failed to load users");
       } finally {
         setLoading(false);
       }
     };
 
     fetchUsers();
-  }, [token]);
+  }, []);
 
   // -------------------------
   // Register User
   // -------------------------
-  const handleRegister = async (e: any) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage("");
+
     try {
       const res = await api.post("/auth/register", {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ email, username, password, role }),
+        email,
+        username,
+        password,
+        role,
       });
-      const data = await res.json();
-      if (res.ok) {
-        setMessage("✅ User created successfully");
-        setUsername("");
-        setPassword("");
-        setEmail("");
-        setRole("cashier");
-        setUsers((prev) => [...prev, { ...data.user, email, username, role }]);
-      } else {
-        setMessage(`❌ ${data.msg || "Failed to create user"}`);
-      }
-    } catch {
-      setMessage("⚠️ Network error");
+
+      setMessage("✅ User created successfully");
+
+      setUsers((prev) => [...prev, res.data.user]);
+
+      setUsername("");
+      setPassword("");
+      setEmail("");
+      setRole("cashier");
+    } catch (err: any) {
+      setMessage(
+        `❌ ${err.response?.data?.msg || "Failed to create user"}`
+      );
     }
   };
 
@@ -81,15 +73,16 @@ export default function ManageUsers() {
   // -------------------------
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this user?")) return;
-    const res = await api.delete(`/admin/users/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
-    if (res.ok) {
+
+    try {
+      const res = await api.delete(`/admin/users/${id}`);
+
       setUsers((prev) => prev.filter((u) => u.id !== id));
-      setMessage(`🗑️ ${data.msg}`);
-    } else {
-      setMessage(`❌ ${data.msg || "Failed to delete user"}`);
+      setMessage(`🗑️ ${res.data.msg}`);
+    } catch (err: any) {
+      setMessage(
+        `❌ ${err.response?.data?.msg || "Failed to delete user"}`
+      );
     }
   };
 
@@ -97,26 +90,27 @@ export default function ManageUsers() {
   // Upgrade/Demote User Role
   // -------------------------
   const handleUpgrade = async (id: number, newRole: string) => {
-    const res = await api.put(`/admin/users/${id}/role`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ role: newRole }),
-    });
-    const data = await res.json();
-    if (res.ok) {
+    try {
+      const res = await api.put(`/admin/users/${id}/role`, {
+        role: newRole,
+      });
+
       setUsers((prev) =>
-        prev.map((u) => (u.id === id ? { ...u, role: newRole } : u))
+        prev.map((u) =>
+          u.id === id ? { ...u, role: newRole } : u
+        )
       );
-      setMessage(`🔄 ${data.msg}`);
-    } else {
-      setMessage(`❌ ${data.msg || "Failed to update role"}`);
+
+      setMessage(`🔄 ${res.data.msg}`);
+    } catch (err: any) {
+      setMessage(
+        `❌ ${err.response?.data?.msg || "Failed to update role"}`
+      );
     }
   };
 
   // -------------------------
-  // UI Rendering
+  // UI
   // -------------------------
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4 sm:p-6 flex justify-center">
@@ -125,7 +119,7 @@ export default function ManageUsers() {
           👥 Manage Users
         </h1>
 
-        {/* Form */}
+        {/* Create User Form */}
         <form onSubmit={handleRegister} className="space-y-3">
           <input
             type="email"
@@ -144,6 +138,7 @@ export default function ManageUsers() {
             required
             className="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
           />
+
           <input
             type="password"
             placeholder="Password"
@@ -152,6 +147,7 @@ export default function ManageUsers() {
             required
             className="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
           />
+
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
@@ -171,7 +167,9 @@ export default function ManageUsers() {
 
         {/* Message */}
         {message && (
-          <p className="mt-4 text-center text-sm text-gray-700">{message}</p>
+          <p className="mt-4 text-center text-sm text-gray-700">
+            {message}
+          </p>
         )}
 
         {/* User List */}
@@ -181,7 +179,9 @@ export default function ManageUsers() {
           </h2>
 
           {loading ? (
-            <p className="text-center text-gray-500 text-sm">Loading users.</p>
+            <p className="text-center text-gray-500 text-sm">
+              Loading users...
+            </p>
           ) : users.length === 0 ? (
             <p className="text-center text-gray-500 text-sm">
               No users found.
@@ -194,26 +194,35 @@ export default function ManageUsers() {
                   className="p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center hover:bg-gray-50 transition"
                 >
                   <div>
-                    <p className="font-medium text-gray-800">{u.username}</p>
-                    <p className="text-xs text-gray-500">{u.role}</p>
+                    <p className="font-medium text-gray-800">
+                      {u.username}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {u.role}
+                    </p>
                   </div>
 
                   <div className="flex gap-2 mt-2 sm:mt-0">
                     {u.role !== "admin" ? (
                       <button
-                        onClick={() => handleUpgrade(u.id, "admin")}
+                        onClick={() =>
+                          handleUpgrade(u.id, "admin")
+                        }
                         className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full hover:bg-green-200"
                       >
                         Upgrade
                       </button>
                     ) : (
                       <button
-                        onClick={() => handleUpgrade(u.id, "cashier")}
+                        onClick={() =>
+                          handleUpgrade(u.id, "cashier")
+                        }
                         className="text-xs bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full hover:bg-yellow-200"
                       >
                         Demote
                       </button>
                     )}
+
                     <button
                       onClick={() => handleDelete(u.id)}
                       className="text-xs bg-red-100 text-red-700 px-3 py-1 rounded-full hover:bg-red-200"
