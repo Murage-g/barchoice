@@ -71,7 +71,7 @@ export default function CashierDashboard() {
               Record Sale
             </Link>
             <Link
-              href="/debts"
+              href="/dashboard/debtors"
               className="text-center bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition font-medium"
             >
               Manage Debts

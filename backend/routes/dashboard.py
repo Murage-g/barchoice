@@ -49,19 +49,13 @@ def cashier_dashboard():
         return jsonify({"error": "User not found"}), 404
 
     # Fetch today's closes processed by this user
-    from sqlalchemy import and_
-    closes = DailyClose.query.filter(
-        and_(
-            DailyClose.date == today,
-            DailyClose.processed_by == user.email
-        )
-    ).all()
+    # Today's summary
+    closes = DailyClose.query.filter(func.date(DailyClose.date) == today).all()
+    today_revenue = sum((c.revenue or 0) for c in closes)
+    today_profit = sum((c.profit or 0) for c in closes)
 
-    today_revenue = sum(c.revenue or 0 for c in closes)
-    today_profit = sum(c.profit or 0 for c in closes)
-
-    # Low stock products
-    low_stock = Product.query.filter(Product.stock < 10).order_by(Product.stock.asc()).limit(5).all()
+    # Stock alerts
+    low_stock = Product.query.filter(Product.stock < 10).order_by(Product.stock.asc()).limit(10).all()
 
     return jsonify({
         "today_revenue": round(today_revenue, 2),
