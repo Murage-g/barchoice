@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import api from "@/lib/api";
 
 export default function ManageUsers() {
   const [users, setUsers] = useState<any[]>([]);
@@ -30,7 +31,7 @@ export default function ManageUsers() {
 
     const fetchUsers = async () => {
       try {
-        const res = await fetch("/admin/users", {
+        const res = await fetch("/api/admin/users", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -52,7 +53,7 @@ export default function ManageUsers() {
     e.preventDefault();
     setMessage("");
     try {
-      const res = await fetch("/auth/register", {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -81,7 +82,7 @@ export default function ManageUsers() {
   // -------------------------
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this user?")) return;
-    const res = await fetch(`/admin/users/${id}`, {
+    const res = await fetch(`/api/admin/users/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -98,7 +99,7 @@ export default function ManageUsers() {
   // Upgrade/Demote User Role
   // -------------------------
   const handleUpgrade = async (id: number, newRole: string) => {
-    const res = await fetch(`/admin/users/${id}/role`, {
+    const res = await fetch(`/api/admin/users/${id}/role`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
