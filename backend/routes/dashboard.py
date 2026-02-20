@@ -35,7 +35,7 @@ def admin_dashboard():
     }), 200
 
 
-@dashboard_bp.route("/api/cashier/dashboard", methods=["GET"])
+@dashboard_bp.route("/cashier/dashboard", methods=["GET"])
 @jwt_required()
 @role_required(["cashier", "admin"])
 def cashier_dashboard():
