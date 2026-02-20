@@ -40,6 +40,7 @@ def admin_dashboard():
 @jwt_required()
 @role_required("cashier", "admin")
 def cashier_dashboard():
+    from sqlalchemy import func
     today = datetime.utcnow().date()
 
     # Get current user
