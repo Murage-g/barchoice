@@ -37,7 +37,7 @@ def admin_dashboard():
 
 @dashboard_bp.route("/cashier/dashboard", methods=["GET"])
 @jwt_required()
-@role_required(["cashier", "admin"])
+@role_required("cashier", "admin")
 def cashier_dashboard():
     today = datetime.utcnow().date()
     claims = get_jwt()
