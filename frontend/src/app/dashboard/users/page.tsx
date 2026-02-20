@@ -31,7 +31,7 @@ export default function ManageUsers() {
 
     const fetchUsers = async () => {
       try {
-        const res = await fetch("/api/admin/users", {
+        const res = await api.get("/admin/users", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
@@ -53,8 +53,7 @@ export default function ManageUsers() {
     e.preventDefault();
     setMessage("");
     try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
+      const res = await api.post("/auth/register", {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -82,8 +81,7 @@ export default function ManageUsers() {
   // -------------------------
   const handleDelete = async (id: number) => {
     if (!confirm("Are you sure you want to delete this user?")) return;
-    const res = await fetch(`/api/admin/users/${id}`, {
-      method: "DELETE",
+    const res = await api.delete(`/admin/users/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
@@ -99,8 +97,7 @@ export default function ManageUsers() {
   // Upgrade/Demote User Role
   // -------------------------
   const handleUpgrade = async (id: number, newRole: string) => {
-    const res = await fetch(`/api/admin/users/${id}/role`, {
-      method: "PUT",
+    const res = await api.put(`/admin/users/${id}/role`, {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
