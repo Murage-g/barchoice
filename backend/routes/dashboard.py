@@ -1,6 +1,7 @@
 # backend/routes/dashboard.py
 from flask import Blueprint, jsonify
-from flask_jwt_extended import get_jwt, jwt_required
+from flask_jwt_extended import get_jwt, jwt_required, get_jwt_identity
+from ..models.user import User
 from datetime import datetime
 from ..models import DailyClose, Product, Debtor
 from ..utils.decorators import role_required
