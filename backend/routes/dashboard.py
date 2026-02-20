@@ -40,16 +40,26 @@ def admin_dashboard():
 @role_required("cashier", "admin")
 def cashier_dashboard():
     today = datetime.utcnow().date()
-    claims = get_jwt()
-    user_id = claims.get("sub")
 
-    closes = DailyClose.query.filter_by(
-        date=today,
-        processed_by=current_user.username  # adjust field name correctly
+    # Get current user
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    # Fetch today's closes processed by this user
+    from sqlalchemy import and_
+    closes = DailyClose.query.filter(
+        and_(
+            DailyClose.date == today,
+            DailyClose.processed_by == user.email
+        )
     ).all()
-    today_revenue = sum(c.revenue for c in closes)
-    today_profit = sum(c.profit for c in closes)
 
+    today_revenue = sum(c.revenue or 0 for c in closes)
+    today_profit = sum(c.profit or 0 for c in closes)
+
+    # Low stock products
     low_stock = Product.query.filter(Product.stock < 10).order_by(Product.stock.asc()).limit(5).all()
 
     return jsonify({
