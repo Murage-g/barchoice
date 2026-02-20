@@ -43,7 +43,10 @@ def cashier_dashboard():
     claims = get_jwt()
     user_id = claims.get("sub")
 
-    closes = DailyClose.query.filter_by(date=today, user_id=user_id).all()
+    closes = DailyClose.query.filter_by(
+        date=today,
+        processed_by=current_user.username  # adjust field name correctly
+    ).all()
     today_revenue = sum(c.revenue for c in closes)
     today_profit = sum(c.profit for c in closes)
 
