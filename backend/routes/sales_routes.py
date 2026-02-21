@@ -198,7 +198,18 @@ def adjust_closing_stock(dc_id):
 
     return jsonify({
         "message": "Adjustment successful",
-        "adjustment": adjustment.to_dict()
+        "adjustment": {
+            "id": adjustment.id,
+            "daily_close_id": adjustment.daily_close_id,
+            "previous_closing_stock": adjustment.previous_closing_stock,
+            "new_closing_stock": adjustment.new_closing_stock,
+            "quantity_delta": adjustment.quantity_delta,
+            "revenue_delta": adjustment.revenue_delta,
+            "profit_delta": adjustment.profit_delta,
+            "reason": adjustment.reason,
+            "created_by": adjustment.created_by,
+            "created_at": adjustment.created_at.isoformat(),
+        }
     }), 200
 
 
