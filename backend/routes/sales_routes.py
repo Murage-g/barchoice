@@ -167,14 +167,18 @@ def adjust_closing_stock(dc_id):
 
     previous_closing = daily_close.closing_stock
 
-    quantity_delta = previous_closing - new_closing_stock
-    revenue_delta = quantity_delta * product.unit_price
-    profit_delta = quantity_delta * (product.unit_price - product.cost_price)
+    difference = new_closing_stock - previous_closing
+    units_delta = -difference  # opposite direction
 
-    # Correct stock adjustment
-    product.stock -= quantity_delta
+    revenue_delta = units_delta * product.unit_price
+    profit_delta = units_delta * (product.unit_price - product.cost_price)
+
+    # Adjust product stock to match physical correction
+    product.stock += difference
+
+    # Update daily close
     daily_close.closing_stock = new_closing_stock
-    daily_close.units_sold += quantity_delta
+    daily_close.units_sold += units_delta
     daily_close.revenue += revenue_delta
     daily_close.profit += profit_delta
 
@@ -182,7 +186,7 @@ def adjust_closing_stock(dc_id):
         daily_close_id=daily_close.id,
         previous_closing_stock=previous_closing,
         new_closing_stock=new_closing_stock,
-        quantity_delta=quantity_delta,
+        quantity_delta=difference,
         revenue_delta=revenue_delta,
         profit_delta=profit_delta,
         reason=reason,

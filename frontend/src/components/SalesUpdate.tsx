@@ -15,16 +15,18 @@ interface DailyCloseAdjustment {
   created_at: string;
 }
 
+interface Close {
+  id: number;
+  product_name: string;
+  opening_stock: number;
+  closing_stock: number;
+  units_sold: number;
+  revenue: number;
+  profit: number;
+}
+
 interface Props {
-  closes: {
-    id: number;
-    product_name: string;
-    opening_stock: number;
-    closing_stock: number;
-    units_sold: number;
-    revenue: number;
-    profit: number;
-  }[];
+  closes: Close[];
   closingStockDate: string;
 }
 
@@ -37,7 +39,8 @@ const AdminDailyCloseAdjustments: React.FC<Props> = ({
   >({});
   const [newClosing, setNewClosing] = useState<Record<number, string>>({});
   const [reason, setReason] = useState<Record<number, string>>({});
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<Record<number, string>>({});
+  const [loading, setLoading] = useState<Record<number, boolean>>({});
 
   const isLocked = () => {
     const closeDate = new Date(closingStockDate);
@@ -46,46 +49,76 @@ const AdminDailyCloseAdjustments: React.FC<Props> = ({
   };
 
   const fetchAdjustments = async (dcId: number) => {
-    const res = await api.get(`/api/daily_close/${dcId}/adjustments`);
-
-    const data = Array.isArray(res.data)
-      ? res.data
-      : res.data.adjustments || [];
-
-    setAdjustments((prev) => ({
-      ...prev,
-      [dcId]: data,
-    }));
+    try {
+      const res = await api.get(`/api/daily_close/${dcId}/adjustments`);
+      const data = res.data.adjustments || [];
+      setAdjustments((prev) => ({ ...prev, [dcId]: data }));
+    } catch {
+      console.error("Failed to fetch adjustments");
+    }
   };
 
   useEffect(() => {
     closes.forEach((c) => fetchAdjustments(c.id));
   }, [closes]);
 
-  const submitAdjustment = async (dcId: number) => {
+  const submitAdjustment = async (close: Close) => {
+    const dcId = close.id;
+    const parsed = parseInt(newClosing[dcId]);
+
     if (!newClosing[dcId] || !reason[dcId]) {
-      setError("All fields required");
+      setErrors((prev) => ({ ...prev, [dcId]: "All fields required" }));
       return;
     }
 
+    if (isNaN(parsed) || parsed < 0) {
+      setErrors((prev) => ({
+        ...prev,
+        [dcId]: "Closing stock must be a valid positive number",
+      }));
+      return;
+    }
+
+    setLoading((prev) => ({ ...prev, [dcId]: true }));
+    setErrors((prev) => ({ ...prev, [dcId]: "" }));
+
     try {
       await api.post(`/api/daily_close/${dcId}/adjust`, {
-        new_closing_stock: parseInt(newClosing[dcId]),
+        new_closing_stock: parsed,
         reason: reason[dcId],
       });
 
-      fetchAdjustments(dcId);
-      setNewClosing({ ...newClosing, [dcId]: "" });
-      setReason({ ...reason, [dcId]: "" });
-      setError("");
+      await fetchAdjustments(dcId);
+
+      setNewClosing((prev) => ({ ...prev, [dcId]: "" }));
+      setReason((prev) => ({ ...prev, [dcId]: "" }));
     } catch (err: any) {
-      setError(err.response?.data?.error || "Adjustment failed");
+      setErrors((prev) => ({
+        ...prev,
+        [dcId]: err.response?.data?.error || "Adjustment failed",
+      }));
+    } finally {
+      setLoading((prev) => ({ ...prev, [dcId]: false }));
     }
   };
 
-  const printReport = () => {
-    window.print();
+  const renderPreview = (close: Close) => {
+    const value = parseInt(newClosing[close.id]);
+    if (isNaN(value)) return null;
+
+    const difference = value - close.closing_stock;
+    const unitsDelta = -difference;
+
+    return (
+      <div className="text-xs mt-2 text-gray-600">
+        <div>Units Change: {unitsDelta > 0 ? "+" : ""}{unitsDelta}</div>
+      </div>
+    );
   };
+
+  const printReport = () => window.print();
+
+  const locked = isLocked();
 
   return (
     <div className="mt-10 border-t pt-8">
@@ -93,13 +126,20 @@ const AdminDailyCloseAdjustments: React.FC<Props> = ({
         Daily Close Summary & Adjustments
       </h2>
 
+      {locked && (
+        <div className="bg-red-100 text-red-700 p-3 rounded mb-6">
+          🔒 Daily Close Locked (More than 3 days old)
+        </div>
+      )}
+
       {closes.map((close) => (
         <div key={close.id} className="mb-10 bg-white shadow rounded-xl p-6">
-          {/* PRODUCT SUMMARY */}
+          {/* SUMMARY */}
           <div className="mb-4">
             <h3 className="text-lg font-bold text-gray-800">
               {close.product_name}
             </h3>
+
             <div className="grid grid-cols-3 gap-4 text-sm mt-2">
               <div>Opening: {close.opening_stock}</div>
               <div>Closing: {close.closing_stock}</div>
@@ -113,45 +153,56 @@ const AdminDailyCloseAdjustments: React.FC<Props> = ({
             </div>
           </div>
 
-          {!isLocked() && (
-            <div className="flex gap-3 mb-4">
-              <input
-                type="number"
-                placeholder="New Closing"
-                value={newClosing[close.id] || ""}
-                onChange={(e) =>
-                  setNewClosing({
-                    ...newClosing,
-                    [close.id]: e.target.value,
-                  })
-                }
-                className="border rounded p-2"
-              />
-              <input
-                type="text"
-                placeholder="Reason"
-                value={reason[close.id] || ""}
-                onChange={(e) =>
-                  setReason({
-                    ...reason,
-                    [close.id]: e.target.value,
-                  })
-                }
-                className="border rounded p-2"
-              />
-              <button
-                onClick={() => submitAdjustment(close.id)}
-                className="bg-indigo-600 text-white px-4 py-2 rounded"
-              >
-                Adjust
-              </button>
+          {/* ADJUSTMENT FORM */}
+          {!locked && (
+            <div className="mb-4 space-y-2">
+              <div className="flex gap-3">
+                <input
+                  type="number"
+                  placeholder="New Closing"
+                  value={newClosing[close.id] || ""}
+                  onChange={(e) =>
+                    setNewClosing((prev) => ({
+                      ...prev,
+                      [close.id]: e.target.value,
+                    }))
+                  }
+                  className="border rounded p-2 w-40"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Reason"
+                  value={reason[close.id] || ""}
+                  onChange={(e) =>
+                    setReason((prev) => ({
+                      ...prev,
+                      [close.id]: e.target.value,
+                    }))
+                  }
+                  className="border rounded p-2 flex-1"
+                />
+
+                <button
+                  onClick={() => submitAdjustment(close)}
+                  disabled={loading[close.id]}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded disabled:opacity-50"
+                >
+                  {loading[close.id] ? "Processing..." : "Adjust"}
+                </button>
+              </div>
+
+              {renderPreview(close)}
+
+              {errors[close.id] && (
+                <div className="text-red-600 text-sm">
+                  {errors[close.id]}
+                </div>
+              )}
             </div>
           )}
 
-          {error && (
-            <div className="text-red-600 text-sm mb-3">{error}</div>
-          )}
-
+          {/* HISTORY TABLE */}
           <table className="w-full text-sm border">
             <thead className="bg-gray-100">
               <tr>

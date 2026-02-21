@@ -21,6 +21,7 @@ export default function SalesPage() {
   const [processing, setProcessing] = useState(false);
   const [todayCloses, setTodayCloses] = useState<any[]>([]);
   const [selectedClosingDate, setSelectedClosingDate] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -39,7 +40,6 @@ export default function SalesPage() {
   const fetchTodayClose = async () => {
     try {
       const res = await api.get("/api/daily_close/today");
-
       if (res.data.exists) {
         setTodayCloses(res.data.closes);
         setSelectedClosingDate(res.data.date);
@@ -56,6 +56,21 @@ export default function SalesPage() {
     fetchTodayClose();
   }, []);
 
+  const getSoldProducts = () => {
+    return products
+      .map((p) => {
+        const closingStock = Number(closing[p.id] ?? p.stock);
+        const sold = p.stock - closingStock;
+        return {
+          ...p,
+          closingStock,
+          sold,
+          amount: sold * p.unit_price,
+        };
+      })
+      .filter((p) => p.sold > 0);
+  };
+
   const calculateSales = () => {
     const total = products.reduce((sum, p) => {
       const sold = p.stock - (closing[p.id] || 0);
@@ -68,12 +83,11 @@ export default function SalesPage() {
     calculateSales();
   }, [closing]);
 
-  const submitDailyClose = async () => {
+  const submitDailyClose = () => {
     const invalid = products.some((p) => {
-    const closingStock = Number(closing[p.id] ?? p.stock);
-    const sold = p.stock - closingStock;
-    return sold < 0 || isNaN(closingStock);
-
+      const closingStock = Number(closing[p.id] ?? p.stock);
+      const sold = p.stock - closingStock;
+      return sold < 0 || isNaN(closingStock);
     });
 
     if (invalid) {
@@ -81,18 +95,21 @@ export default function SalesPage() {
       return;
     }
 
-    if (!confirm("Confirm processing daily close?")) return;
+    setShowConfirmModal(true);
+  };
 
+  const confirmDailyClose = async () => {
     setProcessing(true);
 
     try {
       const items = products.map((p) => ({
-      product_id: p.id,
-      closing_stock: Number(closing[p.id] ?? p.stock),
-    }));
+        product_id: p.id,
+        closing_stock: Number(closing[p.id] ?? p.stock),
+      }));
 
       await api.post("/api/daily_close", { items });
 
+      setShowConfirmModal(false);
       await fetchTodayClose();
       await fetchProducts();
     } catch {
@@ -175,7 +192,7 @@ export default function SalesPage() {
         <button
           onClick={submitDailyClose}
           disabled={processing}
-          className="mt-6 w-full bg-indigo-600 text-white py-3 rounded-lg"
+          className="mt-6 w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition"
         >
           {processing ? "Processing..." : "Process Daily Close"}
         </button>
@@ -188,7 +205,87 @@ export default function SalesPage() {
             closingStockDate={selectedClosingDate}
           />
         )}
+      </div>
 
+      {/* ===== CONFIRMATION MODAL ===== */}
+      <div
+        className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-300 ${
+          showConfirmModal ? "opacity-100 visible" : "opacity-0 invisible"
+        }`}
+      >
+        <div
+          className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          onClick={() => !processing && setShowConfirmModal(false)}
+        />
+
+        <div
+          className={`relative bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-6 transform transition-all duration-300 ${
+            showConfirmModal
+              ? "scale-100 translate-y-0 opacity-100"
+              : "scale-95 translate-y-4 opacity-0"
+          }`}
+        >
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <CheckCircle2 className="text-indigo-600" />
+            Confirm Daily Close
+          </h2>
+
+          {getSoldProducts().length === 0 ? (
+            <div className="text-sm text-gray-600">
+              No sales detected.
+            </div>
+          ) : (
+            <>
+              <table className="w-full text-sm mb-4">
+                <thead className="bg-indigo-50">
+                  <tr>
+                    <th className="p-2 text-left">Product</th>
+                    <th className="p-2 text-center">Sold</th>
+                    <th className="p-2 text-center">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getSoldProducts().map((p) => (
+                    <tr key={p.id} className="border-t">
+                      <td className="p-2">{p.name}</td>
+                      <td className="p-2 text-center font-semibold">
+                        {p.sold}
+                      </td>
+                      <td className="p-2 text-center text-indigo-700 font-semibold">
+                        KSh {p.amount.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="flex justify-between font-semibold mb-4">
+                <span>Total</span>
+                <span className="text-indigo-700">
+                  KSh {totalSales.toFixed(2)}
+                </span>
+              </div>
+            </>
+          )}
+
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setShowConfirmModal(false)}
+              disabled={processing}
+              className="px-4 py-2 rounded border hover:bg-gray-100 transition"
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={confirmDailyClose}
+              disabled={processing}
+              className="px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700 transition"
+            >
+              {processing ? "Processing..." : "Confirm & Process"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
