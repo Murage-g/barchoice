@@ -10,7 +10,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
 COPY backend/ ./backend
-COPY migrations/ ./migrations
+COPY alembic/ ./alembic
+COPY alembic.ini .
 RUN chmod +x backend/entrypoint.sh
 
 ENV FLASK_APP=backend.app
