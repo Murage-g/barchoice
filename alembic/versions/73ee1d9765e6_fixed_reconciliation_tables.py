@@ -8,6 +8,7 @@ Create Date: 2026-02-23 14:03:53.974868
 from typing import Sequence, Union
 
 from alembic import op
+from sqlalchemy import inspect
 import sqlalchemy as sa
 
 
@@ -67,17 +68,18 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name')
     )
-    op.create_table('purchase_undo_log',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('purchase_id', sa.Integer(), nullable=False),
-    sa.Column('product_id', sa.Integer(), nullable=False),
-    sa.Column('quantity_reversed', sa.Integer(), nullable=False),
-    sa.Column('total_cost', sa.Float(), nullable=False),
-    sa.Column('reason', sa.String(length=255), nullable=False),
-    sa.Column('undone_by', sa.String(length=120), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=True),
-    sa.PrimaryKeyConstraint('id')
-    )
+    if not inspect(op.get_bind()).has_table("purchase_undo_log"):
+        op.create_table('purchase_undo_log',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('purchase_id', sa.Integer(), nullable=False),
+        sa.Column('product_id', sa.Integer(), nullable=False),
+        sa.Column('quantity_reversed', sa.Integer(), nullable=False),
+        sa.Column('total_cost', sa.Float(), nullable=False),
+        sa.Column('reason', sa.String(length=255), nullable=False),
+        sa.Column('undone_by', sa.String(length=120), nullable=False),
+        sa.Column('created_at', sa.DateTime(), nullable=True),
+        sa.PrimaryKeyConstraint('id')
+        )
     op.create_table('reconciliation',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('date', sa.Date(), nullable=False),
