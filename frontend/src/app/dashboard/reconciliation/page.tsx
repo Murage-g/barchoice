@@ -30,12 +30,23 @@ export default function ReconciliationPage() {
   const [debtors, setDebtors] = useState<Debtor[]>([]);
   const [waiters, setWaiters] = useState<Waiter[]>([]);
   const [error, setError] = useState<string>("");
+  const [reconStatus, setReconStatus] = useState<{
+    status: "none" | "locked" | "open";
+    has_new_sales: boolean;
+    reconciliation_id?: number;
+  }>({ status: "none", has_new_sales: false });
 
   useEffect(() => {
     fetchSummary();
     fetchDebtors();
     fetchWaiters();
+    fetchStatus();
   }, [date]);
+
+  async function fetchStatus() {
+    const res = await api.get(`/api/recon/status?date=${date}`);
+    setReconStatus(res.data);
+  }
 
   async function fetchSummary() {
     try {
@@ -46,6 +57,24 @@ export default function ReconciliationPage() {
       console.error("Failed to fetch summary", err);
     }
   }
+
+  async function downloadReport(reconId: number) {
+  try {
+    const res = await api.get(`/api/recon/${reconId}/report`, {
+      responseType: "blob",
+    });
+
+    const blob = new Blob([res.data], { type: "application/pdf" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `reconciliation_${date}.pdf`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    alert("Failed to download report");
+  }
+}
 
   async function fetchDebtors() {
     try {
@@ -106,6 +135,10 @@ export default function ReconciliationPage() {
       const res = await api.post("/api/recon/create", payload);
       // success
       alert("✅ Reconciliation saved");
+
+      if (res.data?.reconciliation_id) {
+        downloadReport(res.data.reconciliation_id);
+      }
       setLines([]);
       setNotes("");
       setMpesa1("0");
@@ -280,13 +313,34 @@ export default function ReconciliationPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   {error && <div className="text-sm text-red-600">{error}</div>}
+                  {reconStatus.status === "locked" && !reconStatus.has_new_sales && (
+                    <div className="text-red-600 text-sm">
+                      Reconciliation already completed. Add more sales to reconcile again.
+                    </div>
+                  )}
                   <button
                     onClick={submitReconc}
-                    disabled={saving}
+                    disabled={
+                      saving ||
+                      (reconStatus.status === "locked" && !reconStatus.has_new_sales)
+                    }
                     className="bg-indigo-600 text-white px-4 py-2 rounded disabled:opacity-60"
                   >
                     {saving ? "Saving..." : "Save Reconciliation"}
                   </button>
+                  {/* Admin open button */}
+                  {reconStatus.status === "locked" && (
+                    <button
+                      onClick={async () => {
+                        await api.put(`/api/recon/${reconStatus.reconciliation_id}/reopen`);
+                        fetchStatus();
+                        alert("Reconciliation reopened");
+                      }}
+                      className="text-xs bg-yellow-100 px-3 py-1 rounded"
+                    >
+                      Reopen (Admin)
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

@@ -34,6 +34,7 @@ class Reconciliation(db.Model):
     cash_on_hand = db.Column(db.Float, default=0.0)
     notes = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_locked = db.Column(db.Boolean, default=True)
 
     lines = db.relationship("ReconciliationLine", backref="reconciliation", cascade="all, delete-orphan")
 
@@ -49,6 +50,7 @@ class Reconciliation(db.Model):
             "notes": self.notes,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "lines": [l.to_dict() for l in self.lines],
+            "is_locked": self.is_locked,
         }
 
 class ReconciliationLine(db.Model):

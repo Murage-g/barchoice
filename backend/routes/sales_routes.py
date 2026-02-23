@@ -83,13 +83,26 @@ def daily_close():
             if not product:
                 raise ValueError(f"Product ID {item.get('product_id')} not found")
 
-            # Check duplicate daily close
-            existing = DailyClose.query.filter_by(
-                product_id=product.id,
-                date=datetime.utcnow().date()
-            ).first()
-            if existing:
-                raise ValueError(f"{product.name} already closed today")
+            # 🔒 2-Hour Lock Check (per product)
+            last_close = (
+                DailyClose.query
+                .filter_by(product_id=product.id)
+                .order_by(DailyClose.date.desc())
+                .first()
+            )
+
+            # Only enforce for cashier (admin can override)
+            user_role = get_jwt_identity().get("role")
+
+            if last_close and user_role != "admin":
+                time_diff = datetime.utcnow() - last_close.date
+                if time_diff < timedelta(hours=2):
+                    remaining = timedelta(hours=2) - time_diff
+                    minutes_left = int(remaining.total_seconds() // 60)
+                    raise ValueError(
+                        f"{product.name} was closed recently. "
+                        f"Try again in {minutes_left} minutes."
+                    )
 
             closing_stock = int(item.get("closing_stock"))
             opening_stock = product.stock
@@ -111,9 +124,10 @@ def daily_close():
                 revenue=revenue,
                 profit=profit,
                 processed_by=processed_by,
-                date=datetime.utcnow().date(),
+                date=datetime.utcnow(),  # ✅ full timestamp
             )
 
+            # Update stock to new baseline
             product.stock = closing_stock
 
             db.session.add(daily_close_record)
@@ -125,7 +139,7 @@ def daily_close():
         db.session.commit()
 
         return jsonify({
-            "message": "Daily close processed successfully",
+            "message": "Shift close processed successfully",
             "daily_close_ids": [dc.id for dc in created_daily_closes],
             "total_revenue": round(total_revenue, 2),
             "total_profit": round(total_profit, 2),
@@ -138,7 +152,6 @@ def daily_close():
     except Exception:
         db.session.rollback()
         return jsonify({"error": "Failed to process daily close"}), 500
-
 
 @sales_bp.route("/daily_close/<int:dc_id>/adjust", methods=["POST"])
 @jwt_required()

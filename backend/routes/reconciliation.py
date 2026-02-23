@@ -11,6 +11,17 @@ from ..models.debtors import DebtPayment
 from ..models.cashmovements import CashMovement
 from datetime import datetime, date, timedelta
 from ..utils.expense_helpers import record_expense
+# PDF imports
+from flask import send_file
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib import pagesizes
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+from io import BytesIO
 
 recon_bp = Blueprint("recon_bp", __name__, url_prefix="/api/recon")
 
@@ -129,7 +140,11 @@ def recon_summary():
         return jsonify({"error": "invalid date format"}), 400
 
     # SALES from DailyClose
-    closes = DailyClose.query.filter_by(date=d).all()
+    closes = (
+        DailyClose.query
+        .filter(db.func.date(DailyClose.date) == d)
+        .all()
+    )
     total_sales = sum(c.revenue for c in closes) if closes else 0.0
 
     # EXPENSES from CashMovement (NOT Expense table)
@@ -362,3 +377,178 @@ def settle_waiter_bill(bill_id):
 
     return jsonify(bill.to_dict()), 200
 
+@recon_bp.route("/<int:recon_id>/report", methods=["GET"])
+@jwt_required()
+@role_required("admin", "cashier")
+def generate_reconciliation_report(recon_id):
+
+    recon = Reconciliation.query.get_or_404(recon_id)
+
+    # Get sales
+    closes = (
+        DailyClose.query
+        .filter(db.func.date(DailyClose.date) == recon.date)
+        .all()
+    )
+
+    total_sales = sum(c.revenue for c in closes) if closes else 0.0
+
+    # Get expenses
+    expenses = (
+        CashMovement.query
+        .filter(
+            db.func.date(CashMovement.date) == recon.date,
+            CashMovement.type == "outflow"
+        )
+        .all()
+    )
+    total_expenses = sum(e.amount for e in expenses) if expenses else 0.0
+
+    # Totals
+    mpesa_total = recon.mpesa1 + recon.mpesa2 + recon.mpesa3
+    counted_total = mpesa_total + recon.cash_on_hand
+
+    adjustments_total = sum(l.amount for l in recon.lines)
+    expected_cash = total_sales - adjustments_total
+    difference = counted_total - total_sales + adjustments_total
+
+    # Create PDF buffer
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=pagesizes.A4)
+    elements = []
+
+    styles = getSampleStyleSheet()
+    title_style = styles["Heading1"]
+    normal_style = styles["Normal"]
+
+    # Title
+    elements.append(Paragraph("RECONCILIATION REPORT", title_style))
+    elements.append(Spacer(1, 0.3 * inch))
+
+    # Basic Info Table
+    info_data = [
+        ["Date", recon.date.isoformat()],
+        ["Created At", recon.created_at.strftime("%Y-%m-%d %H:%M")],
+        ["Recorded By", str(recon.created_by)],
+    ]
+
+    info_table = Table(info_data, colWidths=[150, 300])
+    info_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+    ]))
+
+    elements.append(info_table)
+    elements.append(Spacer(1, 0.4 * inch))
+
+    # Financial Summary Table
+    summary_data = [
+        ["Total Sales", f"KSh {total_sales:,.2f}"],
+        ["Total Expenses", f"KSh {total_expenses:,.2f}"],
+        ["Mpesa Total", f"KSh {mpesa_total:,.2f}"],
+        ["Cash on Hand", f"KSh {recon.cash_on_hand:,.2f}"],
+        ["Adjustments Total", f"KSh {adjustments_total:,.2f}"],
+        ["Surplus / Shortfall", f"KSh {difference:,.2f}"],
+    ]
+
+    summary_table = Table(summary_data, colWidths=[200, 250])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+    ]))
+
+    elements.append(summary_table)
+    elements.append(Spacer(1, 0.4 * inch))
+
+    # Adjustments Section
+    if recon.lines:
+        elements.append(Paragraph("Adjustments", styles["Heading2"]))
+        elements.append(Spacer(1, 0.2 * inch))
+
+        lines_data = [["Type", "Description", "Amount"]]
+
+        for l in recon.lines:
+            lines_data.append([
+                l.kind,
+                l.description or "",
+                f"KSh {l.amount:,.2f}"
+            ])
+
+        lines_table = Table(lines_data, colWidths=[100, 250, 100])
+        lines_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+
+        elements.append(lines_table)
+
+    # Notes
+    if recon.notes:
+        elements.append(Spacer(1, 0.4 * inch))
+        elements.append(Paragraph("Notes:", styles["Heading2"]))
+        elements.append(Paragraph(recon.notes, normal_style))
+
+    # Build PDF
+    doc.build(elements)
+    buffer.seek(0)
+
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=f"reconciliation_{recon.date}.pdf",
+        mimetype="application/pdf"
+    )
+
+@recon_bp.route("/<int:recon_id>/reopen", methods=["PUT"])
+@jwt_required()
+@role_required("admin")
+def reopen_reconciliation(recon_id):
+    recon = Reconciliation.query.get_or_404(recon_id)
+
+    recon.is_locked = False
+    db.session.commit()
+
+    return jsonify({
+        "message": "Reconciliation reopened",
+        "reconciliation_id": recon.id
+    }), 200
+
+@recon_bp.route("/status", methods=["GET"])
+@jwt_required()
+@role_required("admin", "cashier")
+def reconciliation_status():
+    date_str = request.args.get("date")
+    if not date_str:
+        return jsonify({"error": "date required"}), 400
+
+    recon_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+
+    existing = (
+        Reconciliation.query
+        .filter_by(date=recon_date)
+        .order_by(Reconciliation.created_at.desc())
+        .first()
+    )
+
+    if not existing:
+        return jsonify({"status": "none"}), 200
+
+    # Check if new sales exist
+    latest_close = (
+        DailyClose.query
+        .filter(db.func.date(DailyClose.date) == recon_date)
+        .order_by(DailyClose.date.desc())
+        .first()
+    )
+
+    has_new_sales = (
+        latest_close and latest_close.date > existing.created_at
+    )
+
+    return jsonify({
+        "status": "locked" if existing.is_locked else "open",
+        "has_new_sales": bool(has_new_sales),
+        "reconciliation_id": existing.id
+    }), 200
