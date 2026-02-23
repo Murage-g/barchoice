@@ -14,7 +14,7 @@ done
 echo "Database is ready! Running migrations..."
 
 # Run Flask migrations
-flask db upgrade
+alembic upgrade head
 
 echo "Starting Gunicorn..."
 exec gunicorn backend.app:app --bind 0.0.0.0:$PORT --workers 3
