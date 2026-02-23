@@ -83,35 +83,22 @@ def daily_close():
             if not product:
                 raise ValueError(f"Product ID {item.get('product_id')} not found")
 
-            # 🔒 2-Hour Lock Check (per product)
-            last_close = (
-                DailyClose.query
-                .filter_by(product_id=product.id)
-                .order_by(DailyClose.date.desc())
-                .first()
-            )
-
-            # Only enforce for cashier (admin can override)
-            user_role = get_jwt_identity().get("role")
+            last_close = DailyClose.query.filter_by(product_id=product.id).order_by(DailyClose.date.desc()).first()
+            identity = get_jwt_identity()
+            user_role = identity.get("role") if isinstance(identity, dict) else "cashier"
 
             if last_close and user_role != "admin":
-                time_diff = datetime.utcnow() - last_close.date
+                last_close_datetime = datetime.combine(last_close.date, datetime.min.time()) if isinstance(last_close.date, date) else last_close.date
+                time_diff = datetime.utcnow() - last_close_datetime
                 if time_diff < timedelta(hours=2):
-                    remaining = timedelta(hours=2) - time_diff
-                    minutes_left = int(remaining.total_seconds() // 60)
-                    raise ValueError(
-                        f"{product.name} was closed recently. "
-                        f"Try again in {minutes_left} minutes."
-                    )
+                    minutes_left = int((timedelta(hours=2) - time_diff).total_seconds() // 60)
+                    raise ValueError(f"{product.name} was closed recently. Try again in {minutes_left} minutes.")
 
-            closing_stock = int(item.get("closing_stock"))
+            closing_stock = int(item.get("closing_stock") or 0)
             opening_stock = product.stock
-
             sold = opening_stock - closing_stock
             if sold < 0:
-                raise ValueError(
-                    f"Closing stock for {product.name} cannot exceed opening stock"
-                )
+                raise ValueError(f"Closing stock for {product.name} cannot exceed opening stock")
 
             revenue = sold * product.unit_price
             profit = sold * (product.unit_price - product.cost_price)
@@ -225,7 +212,6 @@ def adjust_closing_stock(dc_id):
         }
     }), 200
 
-
 @sales_bp.route("/daily_close/report/<string:date>", methods=["GET"])
 @jwt_required()
 @role_required("admin", "cashier")
@@ -268,7 +254,6 @@ def daily_close_report(date):
 
     return jsonify(report_data), 200
 
-
 @sales_bp.route("/daily_close/summary/<string:date>", methods=["GET"])
 @jwt_required()
 @role_required("admin", "cashier")
@@ -310,7 +295,6 @@ def daily_close_summary(date):
         "products": products
     }), 200
 
-
 @sales_bp.route("/daily_close/today", methods=["GET"])
 @jwt_required()
 @role_required("admin", "cashier")
@@ -350,7 +334,6 @@ def get_today_daily_close():
         "total_profit": round(total_profit, 2),
         "closes": result
     }), 200
-
 
 @sales_bp.route("/daily_close/<int:daily_close_id>/adjustments", methods=["GET"])
 @jwt_required()
