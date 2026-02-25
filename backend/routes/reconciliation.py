@@ -89,15 +89,16 @@ def create_reconciliation():
             elif kind == "debtor":
                 debtor = Debtor.query.get(related_id)
                 if debtor:
-                    db.session.add(DebtTransaction(
+                    transaction = DebtTransaction(
                         debtor_id=debtor.id,
                         amount=amount,
-                        outstanding_debt=amount,
                         description=desc,
                         issued_by=user,
-                        date=date,
-                        due_date=date + timedelta(days=5)
-                    ))
+                        date=datetime.combine(date, datetime.min.time()),
+                        due_date=datetime.combine(date, datetime.min.time()) + timedelta(days=5)
+                    )
+
+                    db.session.add(transaction)
             elif kind == "waiter":
                 waiter = Waiter.query.get(related_id)
                 if waiter:
