@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
-from datetime import datetime, date
+from datetime import datetime, date, time
 from ..models import Sale, Expense, Product, Purchase
 from ..utils.decorators import role_required
 from ..extensions import db
@@ -10,9 +10,7 @@ from ..models.more import FixedAsset, AccountsReceivable
 
 reports_bp = Blueprint("reports_bp", __name__, url_prefix="/api/reports")
 
-
 def parse_dates():
-    """Parse start_date and end_date from query params safely."""
     start_str = request.args.get("start_date")
     end_str = request.args.get("end_date")
 
@@ -23,13 +21,16 @@ def parse_dates():
         start_date = None
         end_date = None
 
-    # Default to current month if not supplied
     if not start_date:
         start_date = date.today().replace(day=1)
     if not end_date:
         end_date = date.today()
 
-    return start_date, end_date
+    # Convert to datetime range
+    start_datetime = datetime.combine(start_date, time.min)  # 00:00:00
+    end_datetime = datetime.combine(end_date, time.max)      # 23:59:59.999999
+
+    return start_datetime, end_datetime
 
 @reports_bp.route("/debug_token", methods=["GET", "OPTIONS"])
 @jwt_required()
@@ -50,17 +51,16 @@ def debug_token():
 @jwt_required()
 @role_required("admin")
 def profit_loss_report(): 
-    start_date, end_date = parse_dates()
-    print("✅ Route hit", start_date, end_date)
+    start_datetime, end_datetime = parse_dates()
 
     query_sales = Sale.query.filter(
-        db.func.date(Sale.date) >= start_date,
-        db.func.date(Sale.date) <= end_date
+        Sale.date >= start_datetime,
+        Sale.date <= end_datetime
     )
 
     query_expenses = Expense.query.filter(
-        Expense.date >= start_date,
-        Expense.date <= end_date
+        Expense.date >= start_datetime,
+        Expense.date <= end_datetime
     )
 
     total_sales = query_sales.with_entities(db.func.sum(Sale.total_price)).scalar() or 0
@@ -78,7 +78,7 @@ def profit_loss_report():
 
     return jsonify({
         "report_type": "Profit and Loss",
-        "period": {"start": str(start_date), "end": str(end_date)},
+        "period": {"start": str(start_datetime), "end": str(end_datetime)},
         "sections": {
             "sales": float(total_sales),
             "cogs": float(total_cogs),
@@ -92,7 +92,7 @@ def profit_loss_report():
 @jwt_required()
 @role_required("admin")
 def cash_flow_statement():
-    start_date, end_date = parse_dates()
+    start_datetime, end_datetime = parse_dates()
 
     # ============================
     # OPERATING ACTIVITIES
@@ -101,8 +101,8 @@ def cash_flow_statement():
     # Cash received from sales (cash-only)
     cash_sales = (
         Sale.query.filter(
-            db.func.date(Sale.date) >= start_date,
-            db.func.date(Sale.date) <= end_date,
+            Sale.date >= start_datetime,
+            Sale.date <= end_datetime,
         )
         .with_entities(db.func.sum(Sale.total_price))
         .scalar()
@@ -113,8 +113,8 @@ def cash_flow_statement():
     from ..models import debtors as CustomerPayment
     debtor_payments = (
         CustomerPayment.query.filter(
-            db.func.date(CustomerPayment.date) >= start_date,
-            db.func.date(CustomerPayment.date) <= end_date
+            CustomerPayment.date >= start_datetime,
+            CustomerPayment.date <= end_datetime
         )
         .with_entities(db.func.sum(CustomerPayment.amount))
         .scalar()
@@ -126,8 +126,8 @@ def cash_flow_statement():
     # Cash Outflows
     expenses_paid = (
         Expense.query.filter(
-            Expense.date >= start_date,
-            Expense.date <= end_date
+            Expense.date >= start_datetime,
+            Expense.date <= end_datetime
         )
         .with_entities(db.func.sum(Expense.amount))
         .scalar()
@@ -138,8 +138,8 @@ def cash_flow_statement():
     from ..models import purchases as StockAddition
     stock_purchases = (
         StockAddition.query.filter(
-            db.func.date(StockAddition.purchase_date) >= start_date,
-            db.func.date(StockAddition.purchase_date) <= end_date
+            StockAddition.purchase_date >= start_datetime,
+            StockAddition.purchase_date <= end_datetime
                             )
         .with_entities(db.func.sum(StockAddition.total_cost))
         .scalar()
@@ -150,8 +150,8 @@ def cash_flow_statement():
     from ..models import purchases as SupplierPayment
     supplier_payments = (
         SupplierPayment.query.filter(
-            db.func.date(SupplierPayment.purchase_date) >= start_date,
-            db.func.date(SupplierPayment.purchase_date) <= end_date
+            SupplierPayment.purchase_date >= start_datetime,
+            SupplierPayment.purchase_date <= end_datetime
         )
         .with_entities(db.func.sum(SupplierPayment.total_cost))
         .scalar()
@@ -170,8 +170,8 @@ def cash_flow_statement():
     asset_purchases = (
         CashMovement.query.filter(
             CashMovement.type == "asset_purchase",
-            db.func.date(CashMovement.date) >= start_date,
-            db.func.date(CashMovement.date) <= end_date
+            CashMovement.date >= start_datetime,
+            CashMovement.date <= end_datetime
         )
         .with_entities(db.func.sum(CashMovement.amount))
         .scalar()
@@ -182,8 +182,8 @@ def cash_flow_statement():
     asset_sales = (
         CashMovement.query.filter(
             CashMovement.type == "asset_sale",
-            db.func.date(CashMovement.date) >= start_date,
-            db.func.date(CashMovement.date) <= end_date
+            CashMovement.date >= start_datetime,
+            CashMovement.date <= end_datetime
         )
         .with_entities(db.func.sum(CashMovement.amount))
         .scalar()
@@ -199,8 +199,8 @@ def cash_flow_statement():
     loans_received = (
         CashMovement.query.filter(
             CashMovement.type == "loan_in",
-            db.func.date(CashMovement.date) >= start_date,
-            db.func.date(CashMovement.date) <= end_date
+            CashMovement.date >= start_datetime,
+            CashMovement.date <= end_datetime
         )
         .with_entities(db.func.sum(CashMovement.amount))
         .scalar()
@@ -210,8 +210,8 @@ def cash_flow_statement():
     loan_repayments = (
         CashMovement.query.filter(
             CashMovement.type == "loan_out",
-            db.func.date(CashMovement.date) >= start_date,
-            db.func.date(CashMovement.date) <= end_date
+            CashMovement.date >= start_datetime,
+            CashMovement.date <= end_datetime
         )
         .with_entities(db.func.sum(CashMovement.amount))
         .scalar()
@@ -221,8 +221,8 @@ def cash_flow_statement():
     owner_injections = (
         CashMovement.query.filter(
             CashMovement.type == "owner_in",
-            db.func.date(CashMovement.date) >= start_date,
-            db.func.date(CashMovement.date) <= end_date
+            CashMovement.date >= start_datetime,
+            CashMovement.date <= end_datetime
         )
         .with_entities(db.func.sum(CashMovement.amount))
         .scalar()
@@ -232,8 +232,8 @@ def cash_flow_statement():
     owner_drawings = (
         CashMovement.query.filter(
             CashMovement.type == "owner_draw",
-            db.func.date(CashMovement.date) >= start_date,
-            db.func.date(CashMovement.date) <= end_date
+            CashMovement.date >= start_datetime,
+            CashMovement.date <= end_datetime
         )
         .with_entities(db.func.sum(CashMovement.amount))
         .scalar()
@@ -255,7 +255,7 @@ def cash_flow_statement():
     # Calculate opening cash from historical cash movements
     opening_cash = (
         CashMovement.query.filter(
-            db.func.date(CashMovement.date) < start_date
+            CashMovement.date < start_datetime
         )
         .with_entities(db.func.sum(CashMovement.amount))
         .scalar()
@@ -290,8 +290,8 @@ def cash_flow_statement():
             "net_increase_in_cash": float(net_cash_flow),
             "closing_cash_balance": float(closing_cash),
         },
-        "start_date": str(start_date),
-        "end_date": str(end_date),
+        "start_date": str(start_datetime),
+        "end_date": str(end_datetime),
     }), 200
 
 
