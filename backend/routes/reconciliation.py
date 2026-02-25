@@ -89,7 +89,6 @@ def create_reconciliation():
             elif kind == "debtor":
                 debtor = Debtor.query.get(related_id)
                 if debtor:
-                    debtor.total_debt += amount
                     db.session.add(DebtTransaction(
                         debtor_id=debtor.id,
                         amount=amount,
