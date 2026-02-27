@@ -26,3 +26,4 @@ __all__ = [
     "CashMovement", "PurchaseUndoLog",
     "PurchaseOffer",
 ]
+
