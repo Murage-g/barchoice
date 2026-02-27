@@ -320,7 +320,7 @@ export default function PurchasesPage() {
                       <td className="px-4 py-2 text-gray-800 font-medium">{p.product_name}</td>
                       <td className="px-4 py-2 text-gray-700">{p.supplier_name}</td>
                       <td className="px-4 py-2 text-center">{p.quantity}</td>
-                      <td className="px-4 py-2 text-right">{p.unit_cost.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-right">{p.cost_price.toFixed(2)}</td>
                       <td className="px-4 py-2 text-right font-semibold text-indigo-700">
                         {p.total_cost.toFixed(2)}
                       </td>
