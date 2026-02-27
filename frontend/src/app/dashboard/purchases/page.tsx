@@ -346,6 +346,8 @@ export default function PurchasesPage() {
       </div>
       <div>
         <UndoPurchasesPage />
+      </div>
+      <div>
         <SpecialStockManagement />
       </div>
     </div>
