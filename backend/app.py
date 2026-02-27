@@ -16,6 +16,7 @@ from .routes.conversion import conversion_bp
 from .routes.reconciliation import recon_bp
 from .routes.expenses import expenses_bp
 from .routes.reports_bp import reports_bp
+from .routes.special_stock import special_bp
 
 import os
 
@@ -74,6 +75,7 @@ def create_app():
     app.register_blueprint(recon_bp)
     app.register_blueprint(expenses_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(special_bp, url_prefix="/api/special")
     
     @app.route("/")
     def health():

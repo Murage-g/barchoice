@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import UndoPurchasesPage from "@/components/Purchaseundoui";
+import SpecialStockManagement from "@/components/SpecialStockManagement";
 
 interface Supplier {
   id: number;
@@ -345,6 +346,7 @@ export default function PurchasesPage() {
       </div>
       <div>
         <UndoPurchasesPage />
+        <SpecialStockManagement />
       </div>
     </div>
   );
