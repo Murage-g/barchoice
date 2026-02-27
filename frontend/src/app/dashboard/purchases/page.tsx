@@ -13,7 +13,7 @@ interface Supplier {
 interface Product {
   id: number;
   name: string;
-  unit_price: number;
+  cost_price: number;
 }
 
 interface Purchase {
@@ -21,7 +21,7 @@ interface Purchase {
   product_name: string;
   supplier_name: string;
   quantity: number;
-  unit_cost: number;
+  cost_price: number;
   total_cost: number;
   purchase_date: string;
 }
@@ -40,7 +40,7 @@ export default function PurchasesPage() {
     product_id: "",
     supplier_id: "",
     quantity: "",
-    unit_cost: "",
+    cost_price: "",
   });
 
   const [newSupplier, setNewSupplier] = useState({
@@ -97,11 +97,11 @@ export default function PurchasesPage() {
         product_id: Number(form.product_id),
         supplier_id: Number(form.supplier_id),
         quantity: Number(form.quantity),
-        unit_cost: parseFloat(form.unit_cost),
+        cost_price: parseFloat(form.cost_price),
       });
       alert("✅ Purchase recorded successfully!");
       await Promise.all([fetchPurchaseReport(), fetchProducts()]);
-      setForm({ product_id: "", supplier_id: "", quantity: "", unit_cost: "" });
+      setForm({ product_id: "", supplier_id: "", quantity: "", cost_price: "" });
     } catch (err: any) {
       alert(err.response?.data?.error || "Error adding purchase");
     } finally {
@@ -127,7 +127,7 @@ export default function PurchasesPage() {
   useEffect(() => {
     if (form.product_id) {
       const selected = products.find((p) => p.id === Number(form.product_id));
-      if (selected) setForm((f) => ({ ...f, unit_cost: selected.unit_price.toString() }));
+      if (selected) setForm((f) => ({ ...f, cost_price: selected.cost_price.toString() }));
     }
   }, [form.product_id, products]);
 
@@ -202,10 +202,10 @@ export default function PurchasesPage() {
               <input
                 type="number"
                 step="0.01"
-                placeholder="Unit Cost"
+                placeholder="Cost Price"
                 className="flex-1 border border-gray-200 rounded-2xl p-3 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
-                value={form.unit_cost}
-                onChange={(e) => setForm({ ...form, unit_cost: e.target.value })}
+                value={form.cost_price}
+                onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
                 required
               />
               <button
@@ -218,7 +218,7 @@ export default function PurchasesPage() {
                   if (selected)
                     setForm((f) => ({
                       ...f,
-                      unit_cost: selected.unit_price.toString(),
+                      cost_price: selected.cost_price.toString(),
                     }));
                 }}
               >
