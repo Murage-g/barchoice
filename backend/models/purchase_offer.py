@@ -9,13 +9,13 @@ class PurchaseOffer(db.Model):
 
     purchase_id = db.Column(
         db.Integer,
-        db.ForeignKey("purchases.id"),
+        db.ForeignKey("purchase.id"),
         nullable=True
     )
 
     product_id = db.Column(
         db.Integer,
-        db.ForeignKey("products.id"),
+        db.ForeignKey("product.id"),
         nullable=False
     )
 
@@ -25,6 +25,6 @@ class PurchaseOffer(db.Model):
 
     created_by = db.Column(db.String(100), nullable=False)
 
-    # Relationships
-    product = db.relationship("Product", backref="offers")
-    purchase = db.relationship("Purchase", backref="offers")
+    # ✅ Correct relationship
+    product = db.relationship("Product", back_populates="offers")
+    purchase = db.relationship("Purchase", back_populates="offers")

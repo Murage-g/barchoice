@@ -40,7 +40,11 @@ class Purchase(db.Model):
     unit_cost = db.Column(db.Float, nullable=False)
     total_cost = db.Column(db.Float, nullable=False)
     purchase_date = db.Column(db.DateTime, default=datetime.utcnow)
-    offers = db.relationship("PurchaseOffer", backref="purchase", lazy=True)
+    offers = db.relationship(
+        "PurchaseOffer",
+        back_populates="purchase",
+        cascade="all, delete-orphan"
+    )
 
     def to_dict(self):
         return {
@@ -53,3 +57,5 @@ class Purchase(db.Model):
             "purchase_date": self.purchase_date.isoformat(),
             "offers": [offer.to_dict() for offer in self.offers],
         }
+
+        

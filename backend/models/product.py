@@ -7,7 +7,11 @@ class Product(db.Model):
     stock = db.Column(db.Integer, default=0)
     unit_price = db.Column(db.Float, default=0.0)
     cost_price = db.Column(db.Float, default=0.0)
-    offers = db.relationship("PurchaseOffer", backref="product", lazy=True)
+    offers = db.relationship(
+        "PurchaseOffer",
+        back_populates="product",
+        cascade="all, delete-orphan"
+    )
 
     def to_dict(self):
         return {
