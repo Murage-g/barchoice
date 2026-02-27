@@ -3,7 +3,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '123456abcdef'  # auto-generated
-down_revision = 'previous_revision_id'  # check the previous migration
+down_revision = 'ec4b6e60e008'  # check the previous migration
 branch_labels = None
 depends_on = None
 

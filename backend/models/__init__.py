@@ -10,6 +10,7 @@ from .more import FixedAsset, AccountsReceivable
 from .ConversionHistory import ConversionHistory
 from .cashmovements import CashMovement
 from .purchase_undo import PurchaseUndoLog
+from .purchase_offer import PurchaseOffer
 
 __all__ = [
     "Product", "DailyStock", "DailyClose",
@@ -23,4 +24,5 @@ __all__ = [
     "FixedAsset", "AccountsReceivable",
     "ConversionHistory",
     "CashMovement", "PurchaseUndoLog",
+    "PurchaseOffer",
 ]

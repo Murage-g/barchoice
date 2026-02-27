@@ -7,6 +7,7 @@ class Product(db.Model):
     stock = db.Column(db.Integer, default=0)
     unit_price = db.Column(db.Float, default=0.0)
     cost_price = db.Column(db.Float, default=0.0)
+    offers = db.relationship("PurchaseOffer", backref="product", lazy=True)
 
     def to_dict(self):
         return {
@@ -15,6 +16,7 @@ class Product(db.Model):
             "stock": self.stock,
             "unit_price": float(self.unit_price),
             "cost_price": float(self.cost_price),
+            "offers": [offer.to_dict() for offer in self.offers]
         }
 
 
