@@ -1,9 +1,10 @@
-from backend.app import create_app
+import os
+from alembic import context
+from sqlalchemy import create_engine, pool
+
 from backend.extensions import db
 
-app = create_app()
-app.app_context().push()
-
+# Import ALL models so they register with metadata
 from backend.models.product import Product, DailyStock, DailyClose
 from backend.models.sales import Sale
 from backend.models.debtors import Debtor, DebtTransaction
@@ -19,3 +20,24 @@ from backend.models.purchase_undo import PurchaseUndoLog
 from backend.models.purchase_offer import PurchaseOffer
 
 target_metadata = db.metadata
+config = context.config
+
+
+def run_migrations_online():
+    connectable = create_engine(
+        os.getenv("DATABASE_URL"),
+        poolclass=pool.NullPool,
+        pool_pre_ping=True,
+    )
+
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+        )
+
+        with context.begin_transaction():
+            context.run_migrations()
+
+
+run_migrations_online()
