@@ -86,7 +86,7 @@ def add_purchase():
     supplier_id = data.get("supplier_id")
     product_id = data.get("product_id")
     quantity = data.get("quantity", 0)
-    cost_price = data.get("unit_cost", 0.0)  # align with frontend field name
+    cost_price = data.get("cost_price", 0.0)  # align with frontend field name
 
     if not all([supplier_id, product_id]) or quantity <= 0 or cost_price <= 0:
         return jsonify({"error": "Invalid input data"}), 400
