@@ -52,7 +52,7 @@ class Purchase(db.Model):
             "product_id": self.product_id,
             "supplier_id": self.supplier_id,
             "quantity": self.quantity,
-            "unit_cost": float(self.unit_cost),
+            "cost_price": float(self.unit_cost),
             "total_cost": float(self.total_cost),
             "purchase_date": self.purchase_date.isoformat(),
             "offers": [offer.to_dict() for offer in self.offers],
