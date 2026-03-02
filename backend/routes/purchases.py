@@ -117,7 +117,6 @@ def add_purchase():
 
     return jsonify({"message": "Purchase recorded successfully"}), 201
 
-
 # ----------------------------------------------------------------
 # ✅ PURCHASE REPORT
 # ----------------------------------------------------------------
@@ -169,7 +168,7 @@ def purchase_report():
             "product_name": r.product_name,
             "supplier_name": r.supplier_name,
             "quantity": r.quantity,
-            "unit_cost": float(r.unit_cost),
+            "cost_price": float(r.unit_cost),
             "total_cost": float(r.total_cost),
             "purchase_date": r.purchase_date.strftime("%Y-%m-%d"),
         }
