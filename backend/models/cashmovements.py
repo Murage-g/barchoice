@@ -8,6 +8,7 @@ class CashMovement(db.Model):
     date = db.Column(db.Date, nullable=False, default=datetime.utcnow)
     source = db.Column(db.String(50), nullable=False)  # e.g. "Sales", "Mpesa Till 1", "Bank", "Cash"
     type = db.Column(db.String(10), nullable=False)    # "inflow" or "outflow"
+    category = db.Column(db.String(50), nullable=False)
     amount = db.Column(db.Float, nullable=False)
     description = db.Column(db.String(255))
     reference = db.Column(db.String(100))              # optional: transaction ID, invoice ref, etc.
@@ -20,6 +21,7 @@ class CashMovement(db.Model):
             "source": self.source,
             "type": self.type,
             "amount": self.amount,
+            "category": self.category,
             "description": self.description,
             "reference": self.reference,
             "recorded_by": self.recorded_by,

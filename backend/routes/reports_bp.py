@@ -1,6 +1,8 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from datetime import datetime, date, time
+
+from backend.routes import expenses
 from ..models import Sale, Expense, Product, Purchase
 from ..utils.decorators import role_required
 from ..extensions import db
@@ -63,7 +65,7 @@ def profit_loss_report():
         Expense.date <= end_datetime
     )
 
-    total_sales = query_sales.with_entities(db.func.sum(Sale.total_price)).scalar() or 0
+    total_sales = query_sales.with_entities(db.func.sum(Sale.adjusted_total_price)).scalar() or 0
 
     total_cogs = query_sales.join(
         Product, Product.id == Sale.product_id
@@ -76,6 +78,29 @@ def profit_loss_report():
     gross_profit = total_sales - total_cogs
     net_profit = gross_profit - total_expenses  # apply taxes later if needed
 
+     # ----------------------------
+    # AUTOMATIC BAD DEBT PROVISION
+    # ----------------------------
+
+    from ..models.debtors import DebtTransaction
+    from datetime import timedelta
+
+    two_months_ago = end_datetime - timedelta(days=60)
+
+    overdue_transactions = DebtTransaction.query.filter(
+        DebtTransaction.due_date < two_months_ago
+    ).all()
+
+    bad_debt_provision = sum(
+        t.outstanding_amount
+        for t in overdue_transactions
+        if t.outstanding_amount > 0
+    )
+
+    gross_profit = total_sales - total_cogs
+    net_profit = gross_profit - expenses - bad_debt_provision
+
+
     return jsonify({
         "report_type": "Profit and Loss",
         "period": {"start": str(start_datetime), "end": str(end_datetime)},
@@ -84,214 +109,92 @@ def profit_loss_report():
             "cogs": float(total_cogs),
             "gross_profit": float(gross_profit),
             "expenses": float(total_expenses),
+            "bad_debt_provision": float(bad_debt_provision),
             "net_profit": float(net_profit)
         }
     }), 200
 
-@reports_bp.route("/cash_flow", methods=["GET", "OPTIONS"])
+@reports_bp.route("/cash_flow", methods=["GET"])
 @jwt_required()
 @role_required("admin")
 def cash_flow_statement():
+
     start_datetime, end_datetime = parse_dates()
 
-    # ============================
-    # OPERATING ACTIVITIES
-    # ============================
+    movements = CashMovement.query.filter(
+        CashMovement.date >= start_datetime,
+        CashMovement.date <= end_datetime
+    ).all()
 
-    # Cash received from sales (cash-only)
-    cash_sales = (
-        Sale.query.filter(
-            Sale.date >= start_datetime,
-            Sale.date <= end_datetime,
-        )
-        .with_entities(db.func.sum(Sale.total_price))
-        .scalar()
-        or 0
+    operating_inflows = 0
+    operating_outflows = 0
+    investing_inflows = 0
+    investing_outflows = 0
+    financing_inflows = 0
+    financing_outflows = 0
+
+    for m in movements:
+
+        if m.category in ["sales", "expense"]:
+
+            if m.type == "inflow":
+                operating_inflows += m.amount
+            else:
+                operating_outflows += m.amount
+
+        elif m.category == "asset":
+
+            if m.type == "inflow":
+                investing_inflows += m.amount
+            else:
+                investing_outflows += m.amount
+
+        elif m.category in ["loan", "owner"]:
+
+            if m.type == "inflow":
+                financing_inflows += m.amount
+            else:
+                financing_outflows += m.amount
+
+    net_operating = operating_inflows - operating_outflows
+    net_investing = investing_inflows - investing_outflows
+    net_financing = financing_inflows - financing_outflows
+
+    net_cash_flow = net_operating + net_investing + net_financing
+
+    # Opening cash
+    historical = CashMovement.query.filter(
+        CashMovement.date < start_datetime
+    ).all()
+
+    opening_cash = sum(
+        m.amount if m.type == "inflow" else -m.amount
+        for m in historical
     )
-
-    # Cash received from debtors
-    from ..models import debtors as CustomerPayment
-    debtor_payments = (
-        CustomerPayment.query.filter(
-            CustomerPayment.date >= start_datetime,
-            CustomerPayment.date <= end_datetime
-        )
-        .with_entities(db.func.sum(CustomerPayment.amount))
-        .scalar()
-        or 0
-    ) if "CustomerPayment" in globals() else 0
-
-    cash_inflows = cash_sales + debtor_payments
-
-    # Cash Outflows
-    expenses_paid = (
-        Expense.query.filter(
-            Expense.date >= start_datetime,
-            Expense.date <= end_datetime
-        )
-        .with_entities(db.func.sum(Expense.amount))
-        .scalar()
-        or 0
-    )
-
-    # Stock purchases paid immediately
-    from ..models import purchases as StockAddition
-    stock_purchases = (
-        StockAddition.query.filter(
-            StockAddition.purchase_date >= start_datetime,
-            StockAddition.purchase_date <= end_datetime
-                            )
-        .with_entities(db.func.sum(StockAddition.total_cost))
-        .scalar()
-        or 0
-    ) if "StockAddition" in globals() else 0
-
-    # Payments to suppliers
-    from ..models import purchases as SupplierPayment
-    supplier_payments = (
-        SupplierPayment.query.filter(
-            SupplierPayment.purchase_date >= start_datetime,
-            SupplierPayment.purchase_date <= end_datetime
-        )
-        .with_entities(db.func.sum(SupplierPayment.total_cost))
-        .scalar()
-        or 0
-    ) if "SupplierPayment" in globals() else 0
-
-    cash_outflows = expenses_paid + stock_purchases + supplier_payments
-
-    net_operating_cash = cash_inflows - cash_outflows
-
-    # ============================
-    # INVESTING ACTIVITIES
-    # ============================
-    
-    # Asset purchase
-    asset_purchases = (
-        CashMovement.query.filter(
-            CashMovement.type == "asset_purchase",
-            CashMovement.date >= start_datetime,
-            CashMovement.date <= end_datetime
-        )
-        .with_entities(db.func.sum(CashMovement.amount))
-        .scalar()
-        or 0
-    ) if "CashMovement" in globals() else 0
-
-    # Asset sale
-    asset_sales = (
-        CashMovement.query.filter(
-            CashMovement.type == "asset_sale",
-            CashMovement.date >= start_datetime,
-            CashMovement.date <= end_datetime
-        )
-        .with_entities(db.func.sum(CashMovement.amount))
-        .scalar()
-        or 0
-    ) if "CashMovement" in globals() else 0
-
-    net_investing_cash = asset_sales - asset_purchases
-
-    # ============================
-    # FINANCING ACTIVITIES
-    # ============================
-
-    loans_received = (
-        CashMovement.query.filter(
-            CashMovement.type == "loan_in",
-            CashMovement.date >= start_datetime,
-            CashMovement.date <= end_datetime
-        )
-        .with_entities(db.func.sum(CashMovement.amount))
-        .scalar()
-        or 0
-    ) if "CashMovement" in globals() else 0
-
-    loan_repayments = (
-        CashMovement.query.filter(
-            CashMovement.type == "loan_out",
-            CashMovement.date >= start_datetime,
-            CashMovement.date <= end_datetime
-        )
-        .with_entities(db.func.sum(CashMovement.amount))
-        .scalar()
-        or 0
-    ) if "CashMovement" in globals() else 0
-
-    owner_injections = (
-        CashMovement.query.filter(
-            CashMovement.type == "owner_in",
-            CashMovement.date >= start_datetime,
-            CashMovement.date <= end_datetime
-        )
-        .with_entities(db.func.sum(CashMovement.amount))
-        .scalar()
-        or 0
-    ) if "CashMovement" in globals() else 0
-
-    owner_drawings = (
-        CashMovement.query.filter(
-            CashMovement.type == "owner_draw",
-            CashMovement.date >= start_datetime,
-            CashMovement.date <= end_datetime
-        )
-        .with_entities(db.func.sum(CashMovement.amount))
-        .scalar()
-        or 0
-    ) if "CashMovement" in globals() else 0
-
-    net_financing_cash = (
-        loans_received
-        + owner_injections
-        - loan_repayments
-        - owner_drawings
-    )
-
-    # ============================
-    # FINAL CASH POSITION
-    # ============================
-    net_cash_flow = net_operating_cash + net_investing_cash + net_financing_cash
-
-    # Calculate opening cash from historical cash movements
-    opening_cash = (
-        CashMovement.query.filter(
-            CashMovement.date < start_datetime
-        )
-        .with_entities(db.func.sum(CashMovement.amount))
-        .scalar()
-        or 0
-    ) if "CashMovement" in globals() else 0
 
     closing_cash = opening_cash + net_cash_flow
 
-    # ============================
-    # RESPONSE MATCHING YOUR UI
-    # ============================
     return jsonify({
         "report_type": "Cash Flow",
         "sections": {
             "operating_activities": {
-                "cash_inflows": float(cash_inflows),
-                "cash_outflows": float(cash_outflows),
-                "net_cash_from_operations": float(net_operating_cash),
+                "cash_inflows": float(operating_inflows),
+                "cash_outflows": float(operating_outflows),
+                "net_cash_from_operations": float(net_operating),
             },
             "investing_activities": {
-                "purchases_equipment": -float(asset_purchases),
-                "sales_assets": float(asset_sales),
-                "net_cash_from_investing": float(net_investing_cash),
+                "purchases_equipment": float(investing_outflows),
+                "sales_assets": float(investing_inflows),
+                "net_cash_from_investing": float(net_investing),
             },
             "financing_activities": {
-                "loans_received": float(loans_received),
-                "loan_repayments": -float(loan_repayments),
-                "owner_drawings": -float(owner_drawings),
-                "owner_injections": float(owner_injections),
-                "net_cash_from_financing": float(net_financing_cash),
+                "loans_received": float(financing_inflows),
+                "loan_repayments": float(financing_outflows),
+                "net_cash_from_financing": float(net_financing),
             },
             "net_increase_in_cash": float(net_cash_flow),
             "closing_cash_balance": float(closing_cash),
-        },
-        "start_date": str(start_datetime),
-        "end_date": str(end_datetime),
+        }
     }), 200
 
 
@@ -310,6 +213,8 @@ def balance_sheet():
     Matching the frontend structure exactly.
     """
 
+    _, end_datetime = parse_dates()
+
     # ============================
     #        ASSETS SECTION
     # ============================
@@ -317,116 +222,102 @@ def balance_sheet():
     # Inventory value at cost
     inventory_value = (
         db.session.query(db.func.sum(Product.stock * Product.cost_price))
-        .scalar()
-        or 0
+        .scalar() or 0
     )
 
-    # Cash balance (sum of all CashMovements)
-    cash_balance = (
-        CashMovement.query.with_entities(db.func.sum(CashMovement.amount))
-        .scalar()
-        or 0
+    # Cash
+    movements = CashMovement.query.filter(
+        CashMovement.date <= end_datetime
+    ).all()
+
+    cash_balance = sum(
+        m.amount if m.type == "inflow" else -m.amount
+        for m in movements
     )
 
-    # Accounts receivable = unpaid customer balances
-    accounts_receivable = (
-        db.session.query(db.func.sum(AccountsReceivable.remaining_balance))
-        .scalar()
-        or 0
-        if "Customer" in globals()
-        else 0
+     # Receivables
+    from ..models.debtors import DebtTransaction
+    from datetime import timedelta
+
+    all_transactions = DebtTransaction.query.filter(
+        DebtTransaction.date <= end_datetime
+    ).all()
+
+    gross_receivables = sum(
+        t.outstanding_amount for t in all_transactions
     )
 
-    # ----- Fixed Assets -----
-    try:
-        assets = FixedAsset.query.all()
-        total_fixed_assets = sum(a.book_value() for a in assets)
-    except Exception:
-        total_fixed_assets = 0
+    # Automatic Provision (>60 days)
+    two_months_ago = end_datetime - timedelta(days=60)
 
-    # ----- Total Assets -----
-    total_assets = cash_balance + accounts_receivable + inventory_value + total_fixed_assets
-
-
-    # ============================
-    #       LIABILITIES SECTION
-    # ============================
-
-    # Accounts payable (suppliers)
-    from ..models import purchases as SupplierPayment
-    accounts_payable = (
-        db.session.query(db.func.sum(SupplierPayment.balance))
-        .scalar()
-        or 0
-        if "SupplierPayment" in globals()
-        else 0
+    provision = sum(
+        t.outstanding_amount
+        for t in all_transactions
+        if t.due_date < two_months_ago and t.outstanding_amount > 0
     )
 
-    # Outstanding expenses (unpaid)
-    unpaid_expenses = (
-        db.session.query(db.func.sum(Expense.amount))
-        .filter(Expense.is_paid == False)
-        .scalar()
-        or 0
-        if hasattr(Expense, "is_paid")
-        else 0
+    net_receivables = gross_receivables - provision
+
+    # Fixed Assets
+    assets = FixedAsset.query.all()
+    total_fixed_assets = sum(a.book_value() for a in assets)
+
+    total_assets = (
+        cash_balance +
+        inventory_value +
+        net_receivables +
+        total_fixed_assets
     )
 
-    total_liabilities = accounts_payable + unpaid_expenses
+    # -------------------------
+    # LIABILITIES
+    # -------------------------
 
-    # ============================
-    #          EQUITY SECTION
-    # ============================
+    total_liabilities = 0  # purchases immediately paid
 
-    # Profit and Loss → retained earnings
+    # -------------------------
+    # EQUITY
+    # -------------------------
+
     total_sales = (
         db.session.query(db.func.sum(Sale.total_price)).scalar() or 0
     )
 
     total_cogs = (
         db.session.query(db.func.sum(Sale.quantity * Product.cost_price))
-        .join(Product, Product.id == Sale.product_id)
-        .scalar()
-        or 0
+        .join(Product).scalar() or 0
     )
 
     total_expenses = (
         db.session.query(db.func.sum(Expense.amount)).scalar() or 0
     )
 
-    retained_earnings = total_sales - total_cogs - total_expenses
+    retained_earnings = total_sales - total_cogs - total_expenses - provision
 
-    # Owner equity = Assets - Liabilities - retained earnings
-    owner_equity = total_assets - total_liabilities - retained_earnings
+    owner_equity = total_assets - retained_earnings
 
     total_equity = owner_equity + retained_earnings
-
-    # ============================
-    # STRUCTURED RESPONSE FOR UI
-    # ============================
 
     return jsonify({
         "report_type": "Balance Sheet",
         "sections": {
             "assets": {
                 "cash": float(cash_balance),
-                "accounts_receivable": float(accounts_receivable),
                 "inventory": float(inventory_value),
-                "fixed_assets": float(total_assets),
-                "current_assets": float(cash_balance + accounts_receivable + inventory_value),
+                "accounts_receivable": float(gross_receivables),
+                "provision_for_bad_debts": -float(provision),
+                "net_receivables": float(net_receivables),
+                "fixed_assets": float(total_fixed_assets),
                 "total_assets": float(total_assets)
             },
             "liabilities": {
-                "accounts_payable": float(accounts_payable),
-                "unpaid_expenses": float(unpaid_expenses),
-                "current_liabilities": float(accounts_payable + unpaid_expenses),
                 "total_liabilities": float(total_liabilities)
             },
             "equity": {
-                "owner_equity": float(owner_equity),
                 "retained_earnings": float(retained_earnings),
+                "owner_equity": float(owner_equity),
                 "total_equity": float(total_equity)
             },
-            "total_liabilities_and_equity": float(total_liabilities + total_equity)
+            "total_liabilities_and_equity": float(total_equity)
         }
     }), 200
