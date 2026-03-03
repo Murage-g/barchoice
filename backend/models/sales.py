@@ -2,7 +2,8 @@
 
 from datetime import datetime
 from ..extensions import db
-
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import select, func
 
 class Sale(db.Model):
     __tablename__ = "sale"
@@ -35,22 +36,58 @@ class Sale(db.Model):
     # Computed Financial Values
     # =============================
 
-    @property
-    def adjusted_quantity(self):
-        return self.quantity + sum(
-            a.quantity_delta for a in self.adjustments if not a.is_voided
-        )
-
-    @property
+    @hybrid_property
     def adjusted_total_price(self):
         return self.total_price + sum(
             a.price_delta for a in self.adjustments if not a.is_voided
         )
 
-    @property
+    @adjusted_total_price.expression
+    def adjusted_total_price(cls):
+        return cls.total_price + (
+            select(func.coalesce(func.sum(SaleAdjustment.price_delta), 0))
+            .where(
+                (SaleAdjustment.sale_id == cls.id) &
+                (SaleAdjustment.is_voided == False)
+            )
+            .correlate(cls)
+            .scalar_subquery()
+        )
+
+    @hybrid_property
     def adjusted_total_cost(self):
         return self.total_cost + sum(
             a.cost_delta for a in self.adjustments if not a.is_voided
+        )
+
+    @adjusted_total_cost.expression
+    def adjusted_total_cost(cls):
+        return cls.total_cost + (
+            select(func.coalesce(func.sum(SaleAdjustment.cost_delta), 0))
+            .where(
+                (SaleAdjustment.sale_id == cls.id) &
+                (SaleAdjustment.is_voided.is_(False))
+            )
+            .correlate(cls)
+            .scalar_subquery()
+        )
+
+    @hybrid_property
+    def adjusted_quantity(self):
+        return self.quantity + sum(
+            a.quantity_delta for a in self.adjustments if not a.is_voided
+        )
+
+    @adjusted_quantity.expression
+    def adjusted_quantity(cls):
+        return cls.quantity + (
+            select(func.coalesce(func.sum(SaleAdjustment.quantity_delta), 0))
+            .where(
+                (SaleAdjustment.sale_id == cls.id) &
+                (SaleAdjustment.is_voided.is_(False))
+            )
+            .correlate(cls)
+            .scalar_subquery()
         )
 
     def to_dict(self):
