@@ -1,8 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from datetime import datetime, date, time
-
-from backend.routes import expenses
 from ..models import Sale, Expense, Product, Purchase
 from ..utils.decorators import role_required
 from ..extensions import db
@@ -101,7 +99,7 @@ def profit_loss_report():
     print(type(gross_profit))
     print(type(expenses))
     print(type(bad_debt_provision))
-    net_profit = gross_profit - expenses - bad_debt_provision
+    net_profit = gross_profit - total_expenses - bad_debt_provision
 
 
     return jsonify({
