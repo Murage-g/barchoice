@@ -98,6 +98,9 @@ def profit_loss_report():
     )
 
     gross_profit = total_sales - total_cogs
+    print(type(gross_profit))
+    print(type(expenses))
+    print(type(bad_debt_provision))
     net_profit = gross_profit - expenses - bad_debt_provision
 
 
