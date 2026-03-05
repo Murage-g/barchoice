@@ -23,15 +23,27 @@ export default function SalesPage() {
   const [selectedClosingDate, setSelectedClosingDate] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
+  const today = new Date().toISOString().split("T")[0];
+  const draftKey = `daily_close_${today}`;
+
+  /* =========================
+     FETCH PRODUCTS (SAFE)
+  ========================== */
   const fetchProducts = async () => {
     setLoading(true);
     try {
       const res = await api.get("/api/products");
       setProducts(res.data);
 
-      const init: Record<number, number> = {};
-      res.data.forEach((p: Product) => (init[p.id] = p.stock));
-      setClosing(init);
+      const saved = localStorage.getItem(draftKey);
+
+      if (saved) {
+        setClosing(JSON.parse(saved));
+      } else {
+        const init: Record<number, number> = {};
+        res.data.forEach((p: Product) => (init[p.id] = p.stock));
+        setClosing(init);
+      }
     } finally {
       setLoading(false);
     }
@@ -56,33 +68,48 @@ export default function SalesPage() {
     fetchTodayClose();
   }, []);
 
-  const getSoldProducts = () => {
-    return products
+  /* =========================
+     SALES CALCULATION
+  ========================== */
+  useEffect(() => {
+    const total = products.reduce((sum, p) => {
+      const sold = p.stock - (closing[p.id] ?? p.stock);
+      return sum + sold * p.unit_price;
+    }, 0);
+
+    setTotalSales(total);
+  }, [closing, products]);
+
+  const getSoldProducts = () =>
+    products
       .map((p) => {
         const closingStock = Number(closing[p.id] ?? p.stock);
         const sold = p.stock - closingStock;
+
         return {
           ...p,
-          closingStock,
           sold,
           amount: sold * p.unit_price,
         };
       })
       .filter((p) => p.sold > 0);
+
+  /* =========================
+     SAVE DRAFT ON CHANGE
+  ========================== */
+  const updateClosing = (id: number, value: number) => {
+    const updated = {
+      ...closing,
+      [id]: value,
+    };
+
+    setClosing(updated);
+    localStorage.setItem(draftKey, JSON.stringify(updated));
   };
 
-  const calculateSales = () => {
-    const total = products.reduce((sum, p) => {
-      const sold = p.stock - (closing[p.id] || 0);
-      return sum + sold * p.unit_price;
-    }, 0);
-    setTotalSales(total);
-  };
-
-  useEffect(() => {
-    calculateSales();
-  }, [closing]);
-
+  /* =========================
+     VALIDATION
+  ========================== */
   const submitDailyClose = () => {
     const invalid = products.some((p) => {
       const closingStock = Number(closing[p.id] ?? p.stock);
@@ -98,6 +125,9 @@ export default function SalesPage() {
     setShowConfirmModal(true);
   };
 
+  /* =========================
+     CONFIRM PROCESS
+  ========================== */
   const confirmDailyClose = async () => {
     setProcessing(true);
 
@@ -109,6 +139,9 @@ export default function SalesPage() {
 
       await api.post("/api/daily_close", { items });
 
+      // Clear draft only after success
+      localStorage.removeItem(draftKey);
+
       setShowConfirmModal(false);
       await fetchTodayClose();
       await fetchProducts();
@@ -119,10 +152,25 @@ export default function SalesPage() {
     }
   };
 
+  /* =========================
+     DISCARD
+  ========================== */
+  const discardChanges = () => {
+    localStorage.removeItem(draftKey);
+
+    const reset: Record<number, number> = {};
+    products.forEach((p) => (reset[p.id] = p.stock));
+
+    setClosing(reset);
+  };
+
+  /* =========================
+     UI
+  ========================== */
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6">
+      <div></div>
       <div className="max-w-5xl mx-auto">
-
         <header className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <DollarSign className="text-indigo-600 w-8 h-8" />
@@ -148,7 +196,7 @@ export default function SalesPage() {
               </thead>
               <tbody>
                 {products.map((p) => {
-                  const sold = p.stock - (closing[p.id] || 0);
+                  const sold = p.stock - (closing[p.id] ?? p.stock);
                   const amount = sold * p.unit_price;
 
                   return (
@@ -158,14 +206,14 @@ export default function SalesPage() {
                       <td className="p-3 text-center">
                         <input
                           type="number"
-                          value={closing[p.id] ?? ""}
                           min={0}
                           max={p.stock}
+                          value={closing[p.id] ?? ""}
                           onChange={(e) =>
-                            setClosing({
-                              ...closing,
-                              [p.id]: parseInt(e.target.value) || 0,
-                            })
+                            updateClosing(
+                              p.id,
+                              parseInt(e.target.value) || 0
+                            )
                           }
                           className="border rounded p-1 w-20 text-center"
                         />
@@ -190,6 +238,13 @@ export default function SalesPage() {
         </div>
 
         <button
+          onClick={discardChanges}
+          className="mt-3 text-sm text-red-600"
+        >
+          Discard Changes
+        </button>
+
+        <button
           onClick={submitDailyClose}
           disabled={processing}
           className="mt-6 w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition"
@@ -197,7 +252,7 @@ export default function SalesPage() {
           {processing ? "Processing..." : "Process Daily Close"}
         </button>
 
-        <ConversionSection onStockUpdate={() => fetchProducts()} />
+        <ConversionSection onStockUpdate={fetchProducts} />
 
         {todayCloses.length > 0 && selectedClosingDate && (
           <AdminDailyCloseAdjustment
@@ -207,9 +262,11 @@ export default function SalesPage() {
         )}
       </div>
 
-      {/* ===== CONFIRMATION MODAL ===== */}
+      {/* =========================
+          CONFIRM MODAL
+      ========================== */}
       <div
-        className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-300 ${
+        className={`fixed inset-0 z-50 flex items-center justify-center overflow-y-auto px-4 ${
           showConfirmModal ? "opacity-100 visible" : "opacity-0 invisible"
         }`}
       >
@@ -218,13 +275,7 @@ export default function SalesPage() {
           onClick={() => !processing && setShowConfirmModal(false)}
         />
 
-        <div
-          className={`relative bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-6 transform transition-all duration-300 ${
-            showConfirmModal
-              ? "scale-100 translate-y-0 opacity-100"
-              : "scale-95 translate-y-4 opacity-0"
-          }`}
-        >
+        <div className="relative bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl p-6">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
             <CheckCircle2 className="text-indigo-600" />
             Confirm Daily Close
