@@ -239,7 +239,7 @@ export default function SalesPage() {
 
         <button
           onClick={discardChanges}
-          className="mt-3 text-sm text-red-600"
+          className="mt-6 w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition"
         >
           Discard Changes
         </button>
