@@ -169,7 +169,7 @@ export default function SalesPage() {
   ========================== */
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6">
-      <div></div>
+      <div classname = "pt-16"></div>
       <div className="max-w-5xl mx-auto">
         <header className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold flex items-center gap-2">
