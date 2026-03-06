@@ -21,7 +21,12 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           {!hideNavbar && <Navbar />}
-          {children}
+
+          {/* Push content below fixed navbar */}
+          <main className={!hideNavbar ? "pt-16" : ""}>
+            {children}
+          </main>
+
         </AuthProvider>
       </body>
     </html>
